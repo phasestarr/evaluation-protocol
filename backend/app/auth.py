@@ -169,12 +169,10 @@ def seed_initialization_user(db: Session, initialization_email: str) -> None:
         user = User(
             email=normalized_email,
             system_role=SystemRole.admin,
-            organization_node_id=None,
         )
         db.add(user)
     else:
         user.system_role = SystemRole.admin
-        user.organization_node_id = None
     db.commit()
 
 

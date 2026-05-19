@@ -1,29 +1,29 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { fetchTeamReviewContexts } from "../api";
-import type { TeamReviewContext } from "../types";
+import { fetchPeerReviewContexts } from "../api";
+import type { PeerReviewContext } from "../types";
 
-export function TeamReviewPage() {
-  const [contexts, setContexts] = useState<TeamReviewContext[]>([]);
+export function PeerReviewPage() {
+  const [contexts, setContexts] = useState<PeerReviewContext[]>([]);
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchTeamReviewContexts()
+    fetchPeerReviewContexts()
       .then((result) => setContexts(result.contexts))
-      .catch((error) => setMessage(error instanceof Error ? error.message : "같은 팀 평가 목록을 불러오지 못했습니다."));
+      .catch((error) => setMessage(error instanceof Error ? error.message : "동료평가 목록을 불러오지 못했습니다."));
   }, []);
 
   return (
     <section className="dashboard">
       <div className="page-heading">
-        <p className="eyebrow">Team Review</p>
-        <h1>같은 팀 평가</h1>
+        <p className="eyebrow">Peer Review</p>
+        <h1>동료평가</h1>
         <p>평가할 팀을 선택해 주세요.</p>
       </div>
       {message && <div className="admin-message">{message}</div>}
       <div className="action-grid">
         {contexts.map((context) => (
-          <Link className="team-context-row" key={context.team_node_id} to={`/team-review/${context.team_node_id}`}>
+          <Link className="team-context-row" key={context.team_node_id} to={`/peer-review/${context.team_node_id}`}>
             <div>
               <strong>{context.title}</strong>
               <span>{context.role_label}</span>

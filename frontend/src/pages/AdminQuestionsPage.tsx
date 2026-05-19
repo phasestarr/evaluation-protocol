@@ -13,9 +13,9 @@ import type { CurrentUser } from "../types";
 import { AccessDeniedPage } from "./AccessDeniedPage";
 
 const questionPageMeta: Record<EvaluationType, { title: string; eyebrow: string; weighted: boolean }> = {
-  self_review: { title: "자기평가 문항 관리", eyebrow: "Self Review", weighted: false },
-  peer_review: { title: "같은 팀 평가 문항 관리", eyebrow: "Team Review", weighted: true },
-  direct_report_review: { title: "팀원 세부평가 문항 관리", eyebrow: "Direct Report Review", weighted: true },
+  self: { title: "자기평가 문항 관리", eyebrow: "Self", weighted: false },
+  peer: { title: "동료평가 문항 관리", eyebrow: "Peer", weighted: true },
+  manager_detail: { title: "팀원평가 문항 관리", eyebrow: "Manager Detail", weighted: true },
 };
 
 export function AdminQuestionsPage({ user, evaluationType }: { user: CurrentUser | null; evaluationType: EvaluationType }) {

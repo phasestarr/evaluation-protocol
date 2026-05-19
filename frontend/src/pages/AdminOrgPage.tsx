@@ -161,7 +161,7 @@ export function AdminOrgPage({ user }: { user: CurrentUser | null }) {
 
   return (
     <section className="org-fullscreen">
-      {message && <div className="admin-message">{message}</div>}
+      {message && <div className="admin-message error">{message}</div>}
       <div
         className="org-wide-canvas"
         ref={canvasRef}

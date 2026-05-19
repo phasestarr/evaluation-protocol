@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { fetchTeamReview, saveTeamReviewScores } from "../api";
+import { fetchPeerReview, savePeerReviewScores } from "../api";
 import { MarkdownBlock } from "../components/MarkdownBlock";
-import type { EvaluationQuestion, TeamReviewResponse, TeamReviewTarget } from "../types";
+import type { EvaluationQuestion, PeerReviewResponse, PeerReviewTarget } from "../types";
 
-export function TeamReviewDetailPage() {
+export function PeerReviewDetailPage() {
   const { teamNodeId } = useParams();
   const numericTeamNodeId = Number(teamNodeId);
-  const [data, setData] = useState<TeamReviewResponse | null>(null);
+  const [data, setData] = useState<PeerReviewResponse | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string | null>(null);
   const questions = useMemo(() => data?.questions ?? [], [data?.questions]);
@@ -15,12 +15,12 @@ export function TeamReviewDetailPage() {
 
   useEffect(() => {
     if (!Number.isFinite(numericTeamNodeId)) return;
-    fetchTeamReview(numericTeamNodeId)
+    fetchPeerReview(numericTeamNodeId)
       .then((result) => {
         setData(result);
         setDrafts(Object.fromEntries(Object.entries(result.scores).map(([key, value]) => [key, String(value)])));
       })
-      .catch((error) => setMessage(error instanceof Error ? error.message : "팀 평가를 불러오지 못했습니다."));
+      .catch((error) => setMessage(error instanceof Error ? error.message : "동료평가를 불러오지 못했습니다."));
   }, [numericTeamNodeId]);
 
   async function saveScores() {
@@ -39,22 +39,22 @@ export function TeamReviewDetailPage() {
     }
     setMessage(null);
     try {
-      await saveTeamReviewScores(numericTeamNodeId, scores);
+      await savePeerReviewScores(numericTeamNodeId, scores);
       setMessage("저장되었습니다.");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "팀 평가를 저장하지 못했습니다.");
+      setMessage(error instanceof Error ? error.message : "동료평가를 저장하지 못했습니다.");
     }
   }
 
   return (
     <section className="dashboard">
       <div className="page-heading">
-        <p className="eyebrow">Team Review</p>
-        <h1>{data?.team.title || "같은 팀 평가"}</h1>
+        <p className="eyebrow">Peer Review</p>
+        <h1>{data?.team.title || "동료평가"}</h1>
         <MarkdownBlock content={data?.guide_content || "문항 설명이 등록되지 않았습니다. 관리자에게 문의해주세요."} />
       </div>
       <div className="toolbar-row">
-        <Link className="secondary-inline-button" to="/team-review">
+        <Link className="secondary-inline-button" to="/peer-review">
           목록
         </Link>
         <button className="inline-button" type="button" onClick={saveScores}>
@@ -106,14 +106,14 @@ export function TeamReviewDetailPage() {
             </tbody>
           </table>
         </div>
-        {data && questions.length === 0 && <p className="empty-copy">등록된 같은 팀 평가 문항이 없습니다.</p>}
+        {data && questions.length === 0 && <p className="empty-copy">등록된 동료평가 문항이 없습니다.</p>}
         {data && targets.length === 0 && <p className="empty-copy">평가 대상자가 없습니다.</p>}
       </div>
     </section>
   );
 }
 
-function TargetLabel({ target }: { target: TeamReviewTarget }) {
+function TargetLabel({ target }: { target: PeerReviewTarget }) {
   return (
     <div className="target-label">
       <strong>{[target.job_title, target.display_name || target.email].filter(Boolean).join(" ")}</strong>
@@ -125,7 +125,7 @@ function TargetLabel({ target }: { target: TeamReviewTarget }) {
 }
 
 function weightedTotal(
-  target: TeamReviewTarget,
+  target: PeerReviewTarget,
   questions: EvaluationQuestion[],
   drafts: Record<string, string>,
 ) {

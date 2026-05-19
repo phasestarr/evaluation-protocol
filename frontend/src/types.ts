@@ -12,7 +12,7 @@ export interface OrganizationNode {
 
 export type OrganizationNodeType = OrganizationNode["node_type"];
 export type MembershipRole = "member" | "leader";
-export type EvaluationType = "self_review" | "peer_review" | "direct_report_review";
+export type EvaluationType = "self" | "peer" | "manager_detail";
 
 export interface CurrentUser {
   email: string;
@@ -21,7 +21,6 @@ export interface CurrentUser {
   system_role: SystemRole;
   has_leader_membership: boolean;
   organization_affiliation: string;
-  organization_node: OrganizationNode | null;
 }
 
 export interface AuthStatus {
@@ -49,7 +48,20 @@ export interface AdminUser {
   display_name: string | null;
   job_title: string | null;
   system_role: SystemRole;
-  organization_node_id: number | null;
+}
+
+export interface EvaluationCycleSummary {
+  id: number;
+  name: string;
+  snapshot_date: string;
+  status: "running" | "closed";
+  started_at: string | null;
+  ended_at: string | null;
+}
+
+export interface EvaluationSystemStateResponse {
+  status: "idle" | "running";
+  current_cycle: EvaluationCycleSummary | null;
 }
 
 export interface OrganizationMembership {
@@ -103,17 +115,17 @@ export interface SelfReviewResponse {
   answers: Record<string, string>;
 }
 
-export interface TeamReviewContext {
+export interface PeerReviewContext {
   team_node_id: number;
   title: string;
   role_label: string;
 }
 
-export interface TeamReviewContextsResponse {
-  contexts: TeamReviewContext[];
+export interface PeerReviewContextsResponse {
+  contexts: PeerReviewContext[];
 }
 
-export interface TeamReviewTarget {
+export interface PeerReviewTarget {
   user_id: number;
   display_name: string | null;
   email: string | null;
@@ -122,13 +134,13 @@ export interface TeamReviewTarget {
   affiliation: string;
 }
 
-export interface TeamReviewResponse {
+export interface PeerReviewResponse {
   team: {
     id: number;
     title: string;
   };
   guide_content: string;
   questions: EvaluationQuestion[];
-  targets: TeamReviewTarget[];
+  targets: PeerReviewTarget[];
   scores: Record<string, number>;
 }

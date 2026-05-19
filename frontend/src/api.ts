@@ -4,12 +4,13 @@ import type {
   AdminUserSearchResponse,
   AdminUsersResponse,
   AuthStatus,
+  EvaluationSystemStateResponse,
   EvaluationType,
   MembershipRole,
   OrganizationNodeType,
+  PeerReviewContextsResponse,
+  PeerReviewResponse,
   SelfReviewResponse,
-  TeamReviewContextsResponse,
-  TeamReviewResponse
 } from "./types";
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
@@ -46,6 +47,23 @@ export async function logout(): Promise<{ ok: boolean }> {
 
 export async function fetchAdminUsers(): Promise<AdminUsersResponse> {
   return fetchJson<AdminUsersResponse>("/api/admin/users");
+}
+
+export async function fetchEvaluationState(): Promise<EvaluationSystemStateResponse> {
+  return fetchJson<EvaluationSystemStateResponse>("/api/admin/evaluation-state");
+}
+
+export async function startEvaluationCycle(name: string): Promise<EvaluationSystemStateResponse> {
+  return fetchJson<EvaluationSystemStateResponse>("/api/admin/evaluation-state/start", {
+    method: "POST",
+    body: JSON.stringify({ name })
+  });
+}
+
+export async function stopEvaluationCycle(): Promise<EvaluationSystemStateResponse> {
+  return fetchJson<EvaluationSystemStateResponse>("/api/admin/evaluation-state/stop", {
+    method: "POST"
+  });
 }
 
 export async function addWhitelistEmail(input: {
@@ -152,19 +170,19 @@ export async function saveSelfReviewAnswer(questionId: number, answerText: strin
   });
 }
 
-export async function fetchTeamReviewContexts(): Promise<TeamReviewContextsResponse> {
-  return fetchJson<TeamReviewContextsResponse>("/api/evaluations/team-contexts");
+export async function fetchPeerReviewContexts(): Promise<PeerReviewContextsResponse> {
+  return fetchJson<PeerReviewContextsResponse>("/api/evaluations/peer-contexts");
 }
 
-export async function fetchTeamReview(teamNodeId: number): Promise<TeamReviewResponse> {
-  return fetchJson<TeamReviewResponse>(`/api/evaluations/team/${teamNodeId}`);
+export async function fetchPeerReview(teamNodeId: number): Promise<PeerReviewResponse> {
+  return fetchJson<PeerReviewResponse>(`/api/evaluations/peer/${teamNodeId}`);
 }
 
-export async function saveTeamReviewScores(
+export async function savePeerReviewScores(
   teamNodeId: number,
   scores: Array<{ target_user_id: number; question_id: number; score: number }>,
 ): Promise<{ ok: boolean }> {
-  return fetchJson<{ ok: boolean }>(`/api/evaluations/team/${teamNodeId}/scores`, {
+  return fetchJson<{ ok: boolean }>(`/api/evaluations/peer/${teamNodeId}/scores`, {
     method: "PUT",
     body: JSON.stringify({ scores })
   });

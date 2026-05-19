@@ -109,7 +109,7 @@ export function AdminUsersPage({ user }: { user: CurrentUser | null }) {
               추가
             </button>
           </form>
-          {message && <div className="admin-message">{message}</div>}
+          {message && <div className="admin-message error">{message}</div>}
           <div className="list-stack">
             {sortedWhitelist.map((entry) => (
               <div className="list-row" key={entry.id}>

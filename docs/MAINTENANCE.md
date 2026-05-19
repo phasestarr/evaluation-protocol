@@ -2,82 +2,69 @@
 
 This document records operational rules that are easy to forget while changing the evaluation system.
 
-## Local Checks
-
-Use the helper artifacts described in `README.md` for local checks:
+## Verification
 
 ```powershell
-backend\.venv\Scripts\python.exe -m compileall backend\app backend\alembic
-cd frontend
-npm run typecheck
-npm run build
+cd deploy
+docker compose --env-file ../.env.local -f docker-compose.yml -f docker-compose.local.yml up --build -d
+docker compose --env-file ../.env.local -f docker-compose.yml -f docker-compose.local.yml ps
+docker compose --env-file ../.env.local -f docker-compose.yml -f docker-compose.local.yml exec backend python -m compileall app alembic
+docker compose --env-file ../.env.local -f docker-compose.yml -f docker-compose.local.yml exec frontend nginx -t
 ```
 
-`backend/.venv`, `frontend/node_modules`, and `frontend/dist` are disposable local helper artifacts and are ignored by git.
+All verification and tests must run through Docker Compose. `backend/.venv`, `frontend/node_modules`, and `frontend/dist` are disposable IDE helper artifacts and are ignored by git.
 
 ## Database Migrations
 
 - The backend runs Alembic migrations on startup.
 - New schema changes should be represented in `backend/alembic/versions`.
 - Keep the SQLAlchemy models and Alembic migrations aligned.
-- Existing deployments migrate through the full version chain.
 - Fresh deployments use the initial schema plus later migrations, so do not leave removed runtime columns in the initial migration.
+
+## Evaluation State Rules
+
+- `idle` is the only state where admin mutation is allowed.
+- `running` locks whitelist, user, organization, membership, question, and guide edits.
+- Starting a cycle snapshots the current user/tree/question/guide state and creates assignments.
+- Stopping a cycle closes the current snapshot and returns to `idle`.
+- If a user or question was missed, stop the current cycle, edit while idle, and start a new cycle.
 
 ## Cascade Rules
 
-Deleting a user cascades to:
+Live auth and organization cascades:
 
-- `user_sessions`
-- `organization_memberships`
-- `self_review_answers`
-- `peer_review_scores` where the user is reviewer or target
+- `user_sessions.user_id -> users.id` cascades.
+- `organization_memberships.user_id -> users.id` cascades.
+- `organization_memberships.organization_node_id -> organization_nodes.id` cascades.
+- `organization_nodes.parent_id -> organization_nodes.id` cascades for live tree subtree deletion.
 
-Deleting an organization node cascades to:
+Evaluation snapshot cascades:
 
-- `organization_memberships`
-- `peer_review_scores` for that team node
+- `evaluation_cycles` cascades to participants, org snapshots, membership snapshots, cycle questions, guides, assignments, answers, and scores.
+- `review_assignments` cascades to `self_review_answers` and `review_scores`.
+- `evaluation_cycle_questions` cascades to answer/score cells for that cycle question.
 
-Application code also clears `users.organization_node_id` for deleted organization subtrees before deleting nodes.
-
-Deleting an evaluation question cascades to:
-
-- `self_review_answers`
-- `peer_review_scores`
-
-Question deletion is therefore destructive. Use it only when responses for that question should also be removed.
+Do not connect running or closed answers/scores directly to live `users`, live `organization_nodes`, or live `evaluation_questions`. Live edits must affect only future cycles.
 
 ## Evaluation Question Rules
 
-Self-review questions:
+Live templates:
 
-- `evaluation_type = 'self_review'`
-- `weight = null`
-- rendered as textarea questions
-- answer limit is 1000 characters
+- `evaluation_type = 'self'`: no weight, textarea answers, 1000 character limit.
+- `evaluation_type = 'peer'`: `weight > 0`, numeric score columns.
+- `evaluation_type = 'manager_detail'`: `weight > 0`, reserved for leader-to-member detail scoring.
 
-Same-team questions:
-
-- `evaluation_type = 'peer_review'`
-- `weight > 0`
-- effective weight is calculated at read time from active peer-review questions
-- rendered as numeric score columns
-
-Team-member detail questions:
-
-- `evaluation_type = 'direct_report_review'`
-- `weight > 0`
-- managed separately from same-team questions
-- user-facing workflow is not wired yet
+Effective weights are calculated from the active questions in the same evaluation type. Running evaluations calculate from the cycle question snapshot, not the live template table.
 
 ## Role Rules
 
 Do not reintroduce a global `staff/manager` user role.
 
 - Admin access is controlled only by `users.system_role`.
-- Evaluation context and team-lead access are controlled by `organization_memberships`.
-- The dashboard's team detail entry appears when the user has at least one `leader` membership.
+- Evaluation context and leader access are controlled by `organization_memberships`.
+- The dashboard's team-member evaluation entry appears when the user has at least one `leader` membership.
 
-## Same-Team Review Rules
+## Peer Review Rules
 
 Reviewable contexts:
 
@@ -91,7 +78,7 @@ Review targets:
 - parent head memberships
 - reviewer included when present in the selected target set
 - sorted by tree path, role priority, and membership creation order
-- deduplicated by user after sorting
+- deduplicated by participant after sorting
 
 ## Cache Rules
 

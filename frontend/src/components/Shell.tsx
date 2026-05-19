@@ -13,8 +13,8 @@ type NavItem = {
 const navItems: NavItem[] = [
   { to: "/", label: "홈" },
   { to: "/self-review", label: "자기평가" },
-  { to: "/team-review", label: "팀 평가" },
-  { to: "/direct-report-review", label: "하위 평가", requiresLeader: true },
+  { to: "/peer-review", label: "동료평가" },
+  { to: "/manager-detail-review", label: "팀원평가", requiresLeader: true },
   { to: "/admin", label: "관리자", requiresAdmin: true }
 ];
 

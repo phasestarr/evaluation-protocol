@@ -74,10 +74,8 @@ def upgrade() -> None:
         sa.Column("display_name", sa.String(length=200), nullable=True),
         sa.Column("system_role", system_role, nullable=False),
         sa.Column("is_whitelisted", sa.Boolean(), nullable=False),
-        sa.Column("organization_node_id", sa.Integer(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.ForeignKeyConstraint(["organization_node_id"], ["organization_nodes.id"]),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(op.f("ix_users_email"), "users", ["email"], unique=True)

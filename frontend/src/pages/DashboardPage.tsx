@@ -15,18 +15,18 @@ export function DashboardPage({ user }: { user: CurrentUser }) {
         icon: UserRound
       },
       {
-        to: "/team-review",
-        title: "같은 팀 평가",
-        description: "같은 팀 평가 입력",
+        to: "/peer-review",
+        title: "동료평가",
+        description: "동료평가 입력",
         icon: UsersRound
       }
     ];
 
     if (user.has_leader_membership) {
       base.push({
-        to: "/direct-report-review",
-        title: "팀원 세부평가",
-        description: "소속 팀원의 세부 평가",
+        to: "/manager-detail-review",
+        title: "팀원평가",
+        description: "소속 팀원 평가",
         icon: CheckSquare
       });
     }

@@ -13,8 +13,8 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { LoginPage } from "./pages/LoginPage";
 import { SelfReviewPage } from "./pages/SelfReviewPage";
 import { SplashPage } from "./pages/SplashPage";
-import { TeamReviewDetailPage } from "./pages/TeamReviewDetailPage";
-import { TeamReviewPage } from "./pages/TeamReviewPage";
+import { PeerReviewDetailPage } from "./pages/PeerReviewDetailPage";
+import { PeerReviewPage } from "./pages/PeerReviewPage";
 import { WorkflowPage } from "./pages/WorkflowPage";
 import type { AuthStatus } from "./types";
 
@@ -46,13 +46,13 @@ export default function App() {
               <Routes>
                 <Route path="/" element={auth.user ? <DashboardPage user={auth.user} /> : <Navigate to="/login" replace />} />
                 <Route path="/self-review" element={<SelfReviewPage />} />
-                <Route path="/team-review" element={<TeamReviewPage />} />
-                <Route path="/team-review/:teamNodeId" element={<TeamReviewDetailPage />} />
+                <Route path="/peer-review" element={<PeerReviewPage />} />
+                <Route path="/peer-review/:teamNodeId" element={<PeerReviewDetailPage />} />
                 <Route
-                  path="/direct-report-review"
+                  path="/manager-detail-review"
                   element={
                     auth.user?.has_leader_membership ? (
-                      <WorkflowPage icon={CheckSquare} title="팀원 세부평가" />
+                      <WorkflowPage icon={CheckSquare} title="팀원평가" />
                     ) : (
                       <AccessDeniedPage />
                     )
@@ -61,9 +61,9 @@ export default function App() {
                 <Route path="/admin" element={<AdminHomePage user={auth.user} />} />
                 <Route path="/admin/users" element={<AdminUsersPage user={auth.user} />} />
                 <Route path="/admin/org" element={<AdminOrgPage user={auth.user} />} />
-                <Route path="/admin/questions/self" element={<AdminQuestionsPage user={auth.user} evaluationType="self_review" />} />
-                <Route path="/admin/questions/team" element={<AdminQuestionsPage user={auth.user} evaluationType="peer_review" />} />
-                <Route path="/admin/questions/direct-report" element={<AdminQuestionsPage user={auth.user} evaluationType="direct_report_review" />} />
+                <Route path="/admin/questions/self" element={<AdminQuestionsPage user={auth.user} evaluationType="self" />} />
+                <Route path="/admin/questions/peer" element={<AdminQuestionsPage user={auth.user} evaluationType="peer" />} />
+                <Route path="/admin/questions/manager-detail" element={<AdminQuestionsPage user={auth.user} evaluationType="manager_detail" />} />
                 <Route path="/admin/results" element={<AdminPage icon={BarChart3} title="평가 결과 열람" />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
