@@ -1,4 +1,16 @@
-import type { AdminOrgTreeResponse, AdminUserSearchResponse, AdminUsersResponse, AuthStatus, MembershipRole, OrganizationNodeType } from "./types";
+import type {
+  AdminOrgTreeResponse,
+  AdminQuestionsResponse,
+  AdminUserSearchResponse,
+  AdminUsersResponse,
+  AuthStatus,
+  EvaluationType,
+  MembershipRole,
+  OrganizationNodeType,
+  SelfReviewResponse,
+  TeamReviewContextsResponse,
+  TeamReviewResponse
+} from "./types";
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
   const headers = init?.body ? { "Content-Type": "application/json", ...(init.headers as Record<string, string> | undefined) } : init?.headers;
@@ -41,7 +53,6 @@ export async function addWhitelistEmail(input: {
   job_title: string;
   display_name: string;
   system_role: string;
-  organization_role: string;
 }): Promise<unknown> {
   return fetchJson<unknown>("/api/admin/whitelist", {
     method: "POST",
@@ -94,5 +105,67 @@ export async function createOrganizationMembership(input: {
 export async function deleteOrganizationMembership(membershipId: number): Promise<{ ok: boolean }> {
   return fetchJson<{ ok: boolean }>(`/api/admin/org/memberships/${membershipId}`, {
     method: "DELETE"
+  });
+}
+
+export async function fetchAdminQuestions(): Promise<AdminQuestionsResponse> {
+  return fetchJson<AdminQuestionsResponse>("/api/admin/questions");
+}
+
+export async function createEvaluationQuestion(input: {
+  evaluation_type: EvaluationType;
+  title: string;
+  description: string;
+  weight: number | null;
+}): Promise<unknown> {
+  return fetchJson<unknown>("/api/admin/questions", {
+    method: "POST",
+    body: JSON.stringify(input)
+  });
+}
+
+export async function deleteEvaluationQuestion(questionId: number): Promise<{ ok: boolean }> {
+  return fetchJson<{ ok: boolean }>(`/api/admin/questions/${questionId}`, {
+    method: "DELETE"
+  });
+}
+
+export async function fetchEvaluationGuide(evaluationType: EvaluationType): Promise<{ evaluation_type: EvaluationType; content: string }> {
+  return fetchJson<{ evaluation_type: EvaluationType; content: string }>(`/api/admin/evaluation-guides/${evaluationType}`);
+}
+
+export async function saveEvaluationGuide(evaluationType: EvaluationType, content: string): Promise<{ ok: boolean }> {
+  return fetchJson<{ ok: boolean }>(`/api/admin/evaluation-guides/${evaluationType}`, {
+    method: "PUT",
+    body: JSON.stringify({ content })
+  });
+}
+
+export async function fetchSelfReview(): Promise<SelfReviewResponse> {
+  return fetchJson<SelfReviewResponse>("/api/evaluations/self");
+}
+
+export async function saveSelfReviewAnswer(questionId: number, answerText: string): Promise<{ ok: boolean }> {
+  return fetchJson<{ ok: boolean }>(`/api/evaluations/self/answers/${questionId}`, {
+    method: "PUT",
+    body: JSON.stringify({ answer_text: answerText })
+  });
+}
+
+export async function fetchTeamReviewContexts(): Promise<TeamReviewContextsResponse> {
+  return fetchJson<TeamReviewContextsResponse>("/api/evaluations/team-contexts");
+}
+
+export async function fetchTeamReview(teamNodeId: number): Promise<TeamReviewResponse> {
+  return fetchJson<TeamReviewResponse>(`/api/evaluations/team/${teamNodeId}`);
+}
+
+export async function saveTeamReviewScores(
+  teamNodeId: number,
+  scores: Array<{ target_user_id: number; question_id: number; score: number }>,
+): Promise<{ ok: boolean }> {
+  return fetchJson<{ ok: boolean }>(`/api/evaluations/team/${teamNodeId}/scores`, {
+    method: "PUT",
+    body: JSON.stringify({ scores })
   });
 }

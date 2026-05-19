@@ -1,11 +1,14 @@
 from app.db.postgres.models.evaluation import (
+    EvaluationQuestion,
+    EvaluationGuide,
     OAuthStatus,
     OAuthTransaction,
     OrganizationMembership,
     OrganizationMembershipRole,
     OrganizationNode,
     OrganizationNodeType,
-    OrganizationRole,
+    PeerReviewScore,
+    SelfReviewAnswer,
     SystemRole,
     User,
     UserSession,
@@ -13,13 +16,16 @@ from app.db.postgres.models.evaluation import (
 )
 
 __all__ = [
+    "EvaluationQuestion",
+    "EvaluationGuide",
     "OAuthStatus",
     "OAuthTransaction",
     "OrganizationMembership",
     "OrganizationMembershipRole",
     "OrganizationNode",
     "OrganizationNodeType",
-    "OrganizationRole",
+    "PeerReviewScore",
+    "SelfReviewAnswer",
     "SystemRole",
     "User",
     "UserSession",

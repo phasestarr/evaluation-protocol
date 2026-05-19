@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, type MouseEvent, type MutableRefObject, type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import { GitBranch, Trash2, UserRoundPlus } from "lucide-react";
 import {
   createOrganizationMembership,
@@ -31,6 +31,9 @@ type ActiveForm = {
 } | null;
 
 export function AdminOrgPage({ user }: { user: CurrentUser | null }) {
+  const canvasRef = useRef<HTMLDivElement | null>(null);
+  const scrollFrameRef = useRef<number | null>(null);
+  const scrollVectorRef = useRef({ x: 0, y: 0 });
   const [data, setData] = useState<AdminOrgTreeResponse | null>(null);
   const [activeForm, setActiveForm] = useState<ActiveForm>(null);
   const [draftName, setDraftName] = useState("");
@@ -45,6 +48,8 @@ export function AdminOrgPage({ user }: { user: CurrentUser | null }) {
       loadOrg(setData, setMessage);
     }
   }, [user?.system_role]);
+
+  useEffect(() => () => stopEdgeScroll(scrollFrameRef, scrollVectorRef), []);
 
   const tree = useMemo(() => buildTree(data?.nodes ?? []), [data?.nodes]);
 
@@ -83,6 +88,15 @@ export function AdminOrgPage({ user }: { user: CurrentUser | null }) {
     setSelectedUser(null);
     setDraftRole("member");
     setMessage(null);
+  }
+
+  function closeForm() {
+    setActiveForm(null);
+    setDraftName("");
+    setUserQuery("");
+    setUserResults([]);
+    setSelectedUser(null);
+    setDraftRole("member");
   }
 
   function selectUserForMembership(user: AdminUser) {
@@ -148,7 +162,12 @@ export function AdminOrgPage({ user }: { user: CurrentUser | null }) {
   return (
     <section className="org-fullscreen">
       {message && <div className="admin-message">{message}</div>}
-      <div className="org-wide-canvas">
+      <div
+        className="org-wide-canvas"
+        ref={canvasRef}
+        onMouseLeave={() => stopEdgeScroll(scrollFrameRef, scrollVectorRef)}
+        onMouseMove={(event) => updateEdgeScroll(event, canvasRef, scrollFrameRef, scrollVectorRef)}
+      >
         {tree.map((node) => (
           <CompanyTree
             key={node.id}
@@ -166,6 +185,7 @@ export function AdminOrgPage({ user }: { user: CurrentUser | null }) {
             onDeleteNode={removeNode}
             onOpenForm={openForm}
             onSelectUser={selectUserForMembership}
+            onCancelForm={closeForm}
             onSubmitForm={submitInlineForm}
           />
         ))}
@@ -202,6 +222,7 @@ function CompanyTree(props: OrgTreeProps) {
                 onChangeDraftRole={props.onChangeDraftRole}
                 onChangeUserQuery={props.onChangeUserQuery}
                 onSelectUser={props.onSelectUser}
+                onCancel={props.onCancelForm}
                 onSubmit={props.onSubmitForm}
               />
             </section>
@@ -240,6 +261,7 @@ function HeadColumn(props: OrgTreeProps) {
                 onChangeDraftRole={props.onChangeDraftRole}
                 onChangeUserQuery={props.onChangeUserQuery}
                 onSelectUser={props.onSelectUser}
+                onCancel={props.onCancelForm}
                 onSubmit={props.onSubmitForm}
               />
             </div>
@@ -265,6 +287,7 @@ type OrgTreeProps = {
   onDeleteNode: (node: TreeNode) => void;
   onOpenForm: (nodeId: number, kind: ActiveFormKind) => void;
   onSelectUser: (user: AdminUser) => void;
+  onCancelForm: () => void;
   onSubmitForm: (event: FormEvent<HTMLFormElement>) => void;
 };
 
@@ -283,6 +306,7 @@ function OrgNodeCard({
   onDeleteNode,
   onOpenForm,
   onSelectUser,
+  onCancelForm,
   onSubmitForm
 }: OrgTreeProps) {
   const leaders = node.memberships.filter((membership) => membership.membership_role === "leader");
@@ -301,7 +325,7 @@ function OrgNodeCard({
               <button type="button" title="본부 추가" onClick={() => onOpenForm(node.id, "head")}>
                 <GitBranch size={15} />
               </button>
-              <button type="button" title="회사 인원 추가" onClick={() => onOpenForm(node.id, "member")}>
+              <button type="button" title="회사 팀원 추가" onClick={() => onOpenForm(node.id, "member")}>
                 <UserRoundPlus size={15} />
               </button>
             </>
@@ -311,13 +335,13 @@ function OrgNodeCard({
               <button type="button" title="팀 추가" onClick={() => onOpenForm(node.id, "team")}>
                 <GitBranch size={15} />
               </button>
-              <button type="button" title="본부 인원 추가" onClick={() => onOpenForm(node.id, "member")}>
+              <button type="button" title="본부 팀원 추가" onClick={() => onOpenForm(node.id, "member")}>
                 <UserRoundPlus size={15} />
               </button>
             </>
           )}
           {node.node_type === "team" && (
-            <button type="button" title="팀 인원 추가" onClick={() => onOpenForm(node.id, "member")}>
+            <button type="button" title="팀원 추가" onClick={() => onOpenForm(node.id, "member")}>
               <UserRoundPlus size={15} />
             </button>
           )}
@@ -335,7 +359,7 @@ function OrgNodeCard({
             <MembershipGroup label={leaderLabel(node)} memberships={leaders} onDelete={onDeleteMembership} />
           )}
           {members.length > 0 && (
-            <MembershipGroup label="인원" memberships={members} onDelete={onDeleteMembership} />
+            <MembershipGroup label="팀원" memberships={members} onDelete={onDeleteMembership} />
           )}
         </div>
       )}
@@ -353,6 +377,7 @@ function OrgNodeCard({
           onChangeDraftRole={onChangeDraftRole}
           onChangeUserQuery={onChangeUserQuery}
           onSelectUser={onSelectUser}
+          onCancel={onCancelForm}
           onSubmit={onSubmitForm}
         />
       )}
@@ -372,6 +397,7 @@ function InlineForm({
   onChangeDraftRole,
   onChangeUserQuery,
   onSelectUser,
+  onCancel,
   onSubmit
 }: {
   kind: ActiveFormKind;
@@ -385,11 +411,22 @@ function InlineForm({
   onChangeDraftRole: (value: MembershipRole) => void;
   onChangeUserQuery: (value: string) => void;
   onSelectUser: (user: AdminUser) => void;
+  onCancel: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
+  const formRef = useRef<HTMLFormElement | null>(null);
+
+  useEffect(() => {
+    formRef.current?.scrollIntoView({
+      block: "nearest",
+      inline: "nearest",
+      behavior: "smooth"
+    });
+  }, [kind, node.id]);
+
   if (kind === "member") {
     return (
-      <form className="node-inline-form" onSubmit={onSubmit}>
+      <form className="node-inline-form" ref={formRef} onSubmit={onSubmit}>
         <input
           value={userQuery}
           placeholder="사용자 검색"
@@ -412,29 +449,107 @@ function InlineForm({
           </div>
         )}
         <select value={draftRole} onChange={(event) => onChangeDraftRole(event.target.value as MembershipRole)}>
-          <option value="member">인원</option>
           <option value="leader">{leaderLabel(node)}</option>
+          <option value="member">팀원</option>
         </select>
-        <button className="inline-button" type="submit">
-          추가
-        </button>
+        <div className="inline-form-actions">
+          <button className="secondary-inline-button" type="button" onClick={onCancel}>
+            취소
+          </button>
+          <button className="inline-button" type="submit">
+            추가
+          </button>
+        </div>
       </form>
     );
   }
 
   return (
-    <form className="node-inline-form" onSubmit={onSubmit}>
+    <form className="node-inline-form" ref={formRef} onSubmit={onSubmit}>
       <input
         value={draftName}
         placeholder={kind === "head" ? "본부 이름 입력" : "팀 이름 입력"}
         onChange={(event) => onChangeDraftName(event.target.value)}
         required
       />
-      <button className="inline-button" type="submit">
-        {kind === "head" ? "본부 추가" : "팀 추가"}
-      </button>
+      <div className="inline-form-actions">
+        <button className="secondary-inline-button" type="button" onClick={onCancel}>
+          취소
+        </button>
+        <button className="inline-button" type="submit">
+          {kind === "head" ? "본부 추가" : "팀 추가"}
+        </button>
+      </div>
     </form>
   );
+}
+
+function updateEdgeScroll(
+  event: MouseEvent<HTMLDivElement>,
+  canvasRef: RefObject<HTMLDivElement | null>,
+  frameRef: MutableRefObject<number | null>,
+  vectorRef: MutableRefObject<{ x: number; y: number }>,
+) {
+  const canvas = canvasRef.current;
+  if (!canvas) return;
+
+  const target = event.target;
+  if (target instanceof Element && target.closest("button,input,select,textarea")) {
+    stopEdgeScroll(frameRef, vectorRef);
+    return;
+  }
+
+  const rect = canvas.getBoundingClientRect();
+  const edgeX = rect.width * 0.04;
+  const edgeY = rect.height * 0.04;
+  const maxSpeed = 24;
+  const x = edgeVelocity(event.clientX - rect.left, rect.width, edgeX, maxSpeed);
+  const y = edgeVelocity(event.clientY - rect.top, rect.height, edgeY, maxSpeed);
+
+  vectorRef.current = { x, y };
+  if (x === 0 && y === 0) {
+    stopEdgeScroll(frameRef, vectorRef);
+    return;
+  }
+  if (frameRef.current === null) {
+    frameRef.current = window.requestAnimationFrame(() => runEdgeScroll(canvas, frameRef, vectorRef));
+  }
+}
+
+function edgeVelocity(position: number, size: number, edgeSize: number, maxSpeed: number) {
+  if (position < edgeSize) {
+    return -maxSpeed * ((edgeSize - position) / edgeSize);
+  }
+  if (position > size - edgeSize) {
+    return maxSpeed * ((position - (size - edgeSize)) / edgeSize);
+  }
+  return 0;
+}
+
+function runEdgeScroll(
+  canvas: HTMLDivElement,
+  frameRef: MutableRefObject<number | null>,
+  vectorRef: MutableRefObject<{ x: number; y: number }>,
+) {
+  const { x, y } = vectorRef.current;
+  if (x === 0 && y === 0) {
+    frameRef.current = null;
+    return;
+  }
+
+  canvas.scrollBy(x, y);
+  frameRef.current = window.requestAnimationFrame(() => runEdgeScroll(canvas, frameRef, vectorRef));
+}
+
+function stopEdgeScroll(
+  frameRef: MutableRefObject<number | null>,
+  vectorRef: MutableRefObject<{ x: number; y: number }>,
+) {
+  vectorRef.current = { x: 0, y: 0 };
+  if (frameRef.current !== null) {
+    window.cancelAnimationFrame(frameRef.current);
+    frameRef.current = null;
+  }
 }
 
 function MembershipGroup({

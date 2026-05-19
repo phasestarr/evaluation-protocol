@@ -13,7 +13,7 @@ Internal HR evaluation stack behind sibling `root-proxy`.
 ## Active Scope
 - Microsoft OAuth login through backend-owned transaction state
 - env initialization account and DB whitelist enforcement before user creation
-- `user/admin` system role and `staff/manager` organization role
+- `user/admin` system role
 - user whitelist administration
 - organization tree administration under seeded `NEXTIN`
 - multiple leaders and multi-department membership support through organization memberships
@@ -75,11 +75,13 @@ npm run build
 - This repo does not terminate TLS.
 - Server deployment assumes sibling `root-proxy` is the only public entrypoint.
 - Database schema is managed by Alembic migrations at backend startup.
-- `INITIALIZATION_EMAIL` seeds one hidden `admin/manager` user at startup. It is allowed by env, is not inserted into `user_whitelist`, and is not shown in normal admin whitelist/user APIs.
+- `INITIALIZATION_EMAIL` seeds one hidden `admin` user at startup. It is allowed by env, is not inserted into `user_whitelist`, and is not shown in normal admin whitelist/user APIs.
 - Runtime whitelist changes persist in PostgreSQL. Deleting a whitelist entry through the admin API also deletes the matching user row.
 - Deleting a user cascades to sessions and organization memberships.
 - Deleting a session directly is not an operational path; let cleanup or user deletion handle it.
 
 ## Docs
 - [deploy/README.md](deploy/README.md)
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - [docs/DB_OPERATIONS.md](docs/DB_OPERATIONS.md)
+- [docs/MAINTENANCE.md](docs/MAINTENANCE.md)

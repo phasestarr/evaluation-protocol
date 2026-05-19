@@ -1,7 +1,8 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Trash2, UserPlus } from "lucide-react";
 import { addWhitelistEmail, deleteWhitelistEmail, fetchAdminUsers } from "../api";
-import type { AdminUsersResponse, CurrentUser, OrganizationRole, SystemRole } from "../types";
+import { systemRoleLabel } from "../labels";
+import type { AdminUsersResponse, CurrentUser, SystemRole } from "../types";
 import { AccessDeniedPage } from "./AccessDeniedPage";
 
 export function AdminUsersPage({ user }: { user: CurrentUser | null }) {
@@ -10,7 +11,6 @@ export function AdminUsersPage({ user }: { user: CurrentUser | null }) {
   const [jobTitle, setJobTitle] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [systemRole, setSystemRole] = useState<SystemRole>("user");
-  const [organizationRole, setOrganizationRole] = useState<OrganizationRole>("staff");
   const [message, setMessage] = useState<string | null>(null);
   const sortedWhitelist = useMemo(
     () => [...(data?.whitelist ?? [])].sort((a, b) => a.email.localeCompare(b.email)),
@@ -42,14 +42,12 @@ export function AdminUsersPage({ user }: { user: CurrentUser | null }) {
         email,
         job_title: jobTitle,
         display_name: displayName,
-        system_role: systemRole,
-        organization_role: organizationRole
+        system_role: systemRole
       });
       setEmail("");
       setJobTitle("");
       setDisplayName("");
       setSystemRole("user");
-      setOrganizationRole("staff");
       await loadUsers(setData, setMessage);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Failed to add email");
@@ -102,12 +100,8 @@ export function AdminUsersPage({ user }: { user: CurrentUser | null }) {
             />
             <div className="role-select-grid">
               <select value={systemRole} onChange={(event) => setSystemRole(event.target.value as SystemRole)}>
-                <option value="user">user</option>
-                <option value="admin">admin</option>
-              </select>
-              <select value={organizationRole} onChange={(event) => setOrganizationRole(event.target.value as OrganizationRole)}>
-                <option value="staff">staff</option>
-                <option value="manager">manager</option>
+                <option value="user">직원</option>
+                <option value="admin">관리자</option>
               </select>
             </div>
             <button className="inline-button" type="submit">
@@ -142,8 +136,7 @@ export function AdminUsersPage({ user }: { user: CurrentUser | null }) {
                   <span>{[row.job_title, row.email].filter(Boolean).join(" · ")}</span>
                 </div>
                 <div className="role-stack compact">
-                  <span className="role-pill">{row.system_role}</span>
-                  <span className="role-pill">{row.organization_role}</span>
+                  <span className="role-pill">{systemRoleLabel(row.system_role)}</span>
                 </div>
               </div>
             ))}

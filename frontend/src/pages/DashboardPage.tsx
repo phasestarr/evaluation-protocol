@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { CheckSquare, Shield, UserRound, UsersRound } from "lucide-react";
 import { ActionCard } from "../components/ActionCard";
 import { InfoBlock } from "../components/InfoBlock";
+import { systemRoleLabel } from "../labels";
 import type { Action, CurrentUser } from "../types";
 
 export function DashboardPage({ user }: { user: CurrentUser }) {
@@ -15,22 +16,22 @@ export function DashboardPage({ user }: { user: CurrentUser }) {
       },
       {
         to: "/team-review",
-        title: "같은 팀 및 본부장 평가",
-        description: user.organization_role === "manager" ? "본인을 제외한 동료 및 상위 평가" : "팀원, 팀장, 본부장 평가",
+        title: "같은 팀 평가",
+        description: "같은 팀 평가 입력",
         icon: UsersRound
       }
     ];
 
-    if (user.organization_role === "manager") {
+    if (user.has_leader_membership) {
       base.push({
         to: "/direct-report-review",
-        title: "하위 팀원 세부평가",
+        title: "팀원 세부평가",
         description: "소속 팀원의 세부 평가",
         icon: CheckSquare
       });
     }
     return base;
-  }, [user.organization_role]);
+  }, [user.has_leader_membership]);
 
   return (
     <section className="dashboard">
@@ -38,19 +39,17 @@ export function DashboardPage({ user }: { user: CurrentUser }) {
         <div>
           <p className="eyebrow">Dashboard</p>
           <h1>{user.display_name || user.email}</h1>
-          <p>{user.organization_node?.name || "소속 부서 미지정"}</p>
+          <p>{user.organization_affiliation || "소속 부서 미지정"}</p>
         </div>
         <div className="role-stack">
-          <span className="role-pill">{user.system_role === "admin" ? "admin" : "user"}</span>
-          <span className="role-pill">{user.organization_role}</span>
+          <span className="role-pill">{systemRoleLabel(user.system_role)}</span>
         </div>
       </div>
 
       <div className="meta-grid">
         <InfoBlock label="메일" value={user.email} />
-        <InfoBlock label="시스템 권한" value={user.system_role === "admin" ? "관리자" : "일반 사용자"} />
-        <InfoBlock label="조직 역할" value={user.organization_role === "manager" ? "관리자/리더" : "직원"} />
-        <InfoBlock label="조직 노드" value={user.organization_node?.node_type || "미지정"} />
+        <InfoBlock label="직급" value={user.job_title || "미지정"} />
+        <InfoBlock label="시스템 권한" value={systemRoleLabel(user.system_role)} />
       </div>
 
       <WorkSection title="평가" actions={evaluationActions} />

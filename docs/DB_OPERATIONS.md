@@ -32,9 +32,13 @@ order by tablename;
 Expected core tables:
 
 - `alembic_version`
+- `evaluation_guides`
+- `evaluation_questions`
 - `oauth_transactions`
 - `organization_memberships`
 - `organization_nodes`
+- `peer_review_scores`
+- `self_review_answers`
 - `user_sessions`
 - `user_whitelist`
 - `users`
@@ -50,7 +54,6 @@ select
   display_name,
   job_title,
   system_role,
-  organization_role,
   organization_node_id,
   created_at,
   updated_at
@@ -93,7 +96,7 @@ where email = 'someone@nextinsol.com';
 
 Removing a whitelist row directly does not delete an existing user or existing sessions. Prefer the admin API for normal removals because it deletes the whitelist row and matching user row in one operation.
 
-`INITIALIZATION_EMAIL` in `.env` and `.env.local` is a protected bootstrap account. It is allowed by env, seeded as one hidden `admin/manager` user, and deliberately not inserted into `user_whitelist`. The application checks `INITIALIZATION_EMAIL` first and then checks `user_whitelist`, so emails added through the admin UI remain valid even though they are not written back to the env file.
+`INITIALIZATION_EMAIL` in `.env` and `.env.local` is a protected bootstrap account. It is allowed by env, seeded as one hidden `admin` user, and deliberately not inserted into `user_whitelist`. The application checks `INITIALIZATION_EMAIL` first and then checks `user_whitelist`, so emails added through the admin UI remain valid even though they are not written back to the env file.
 
 ## Check Sessions
 
@@ -190,6 +193,58 @@ Membership roles:
 - `member`: regular assigned person
 - `leader`: head leader or team leader depending on the node type
 
+## Check Evaluation Data
+
+List evaluation questions:
+
+```sql
+select id, evaluation_type, title, weight, sort_order, is_active, created_at, updated_at
+from evaluation_questions
+order by evaluation_type, sort_order, id;
+```
+
+List evaluation guide text:
+
+```sql
+select id, evaluation_type, left(content, 160) as content_preview, updated_at
+from evaluation_guides
+order by evaluation_type;
+```
+
+List self-review answers:
+
+```sql
+select
+  a.id,
+  u.email,
+  q.title,
+  left(a.answer_text, 120) as answer_preview,
+  a.updated_at
+from self_review_answers a
+join users u on u.id = a.user_id
+join evaluation_questions q on q.id = a.question_id
+order by u.email, q.sort_order, q.id;
+```
+
+List same-team scores:
+
+```sql
+select
+  s.id,
+  reviewer.email as reviewer_email,
+  team.name as team_name,
+  target.email as target_email,
+  q.title,
+  s.score,
+  s.updated_at
+from peer_review_scores s
+join users reviewer on reviewer.id = s.reviewer_user_id
+join organization_nodes team on team.id = s.team_node_id
+join users target on target.id = s.target_user_id
+join evaluation_questions q on q.id = s.question_id
+order by reviewer.email, team.id, target.email, q.sort_order, q.id;
+```
+
 ## Delete A User
 
 Delete users only when the account must be removed from the system. Do not delete the `INITIALIZATION_EMAIL` user unless you are rebuilding the environment.
@@ -197,7 +252,7 @@ Delete users only when the account must be removed from the system. Do not delet
 First inspect the row:
 
 ```sql
-select id, email, display_name, job_title, system_role, organization_role
+select id, email, display_name, job_title, system_role
 from users
 where email = 'someone@nextinsol.com';
 ```
@@ -220,11 +275,6 @@ System roles:
 - `user`
 - `admin`
 
-Organization roles:
-
-- `staff`
-- `manager`
-
 Promote a user to system admin:
 
 ```sql
@@ -239,15 +289,6 @@ Demote a user from system admin:
 ```sql
 update users
 set system_role = 'user',
-    updated_at = now()
-where email = 'someone@nextinsol.com';
-```
-
-Change organization role:
-
-```sql
-update users
-set organization_role = 'manager',
     updated_at = now()
 where email = 'someone@nextinsol.com';
 ```

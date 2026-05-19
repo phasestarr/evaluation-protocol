@@ -1,16 +1,20 @@
 import { type Dispatch, type ReactNode, type SetStateAction, useEffect, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { BarChart3, CheckSquare, UserRound, UsersRound } from "lucide-react";
+import { BarChart3, CheckSquare } from "lucide-react";
 import { fetchAuthStatus, logout } from "./api";
 import { Shell } from "./components/Shell";
 import { AccessDeniedPage } from "./pages/AccessDeniedPage";
 import { AdminHomePage } from "./pages/AdminHomePage";
 import { AdminOrgPage } from "./pages/AdminOrgPage";
 import { AdminPage } from "./pages/AdminPage";
+import { AdminQuestionsPage } from "./pages/AdminQuestionsPage";
 import { AdminUsersPage } from "./pages/AdminUsersPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { LoginPage } from "./pages/LoginPage";
+import { SelfReviewPage } from "./pages/SelfReviewPage";
 import { SplashPage } from "./pages/SplashPage";
+import { TeamReviewDetailPage } from "./pages/TeamReviewDetailPage";
+import { TeamReviewPage } from "./pages/TeamReviewPage";
 import { WorkflowPage } from "./pages/WorkflowPage";
 import type { AuthStatus } from "./types";
 
@@ -41,13 +45,14 @@ export default function App() {
             <Shell user={auth.user} onLogout={handleLogout(setAuth)}>
               <Routes>
                 <Route path="/" element={auth.user ? <DashboardPage user={auth.user} /> : <Navigate to="/login" replace />} />
-                <Route path="/self-review" element={<WorkflowPage icon={UserRound} title="자기평가" />} />
-                <Route path="/team-review" element={<WorkflowPage icon={UsersRound} title="같은 팀 및 본부장 평가" />} />
+                <Route path="/self-review" element={<SelfReviewPage />} />
+                <Route path="/team-review" element={<TeamReviewPage />} />
+                <Route path="/team-review/:teamNodeId" element={<TeamReviewDetailPage />} />
                 <Route
                   path="/direct-report-review"
                   element={
-                    auth.user?.organization_role === "manager" ? (
-                      <WorkflowPage icon={CheckSquare} title="하위 팀원 세부평가" />
+                    auth.user?.has_leader_membership ? (
+                      <WorkflowPage icon={CheckSquare} title="팀원 세부평가" />
                     ) : (
                       <AccessDeniedPage />
                     )
@@ -56,6 +61,9 @@ export default function App() {
                 <Route path="/admin" element={<AdminHomePage user={auth.user} />} />
                 <Route path="/admin/users" element={<AdminUsersPage user={auth.user} />} />
                 <Route path="/admin/org" element={<AdminOrgPage user={auth.user} />} />
+                <Route path="/admin/questions/self" element={<AdminQuestionsPage user={auth.user} evaluationType="self_review" />} />
+                <Route path="/admin/questions/team" element={<AdminQuestionsPage user={auth.user} evaluationType="peer_review" />} />
+                <Route path="/admin/questions/direct-report" element={<AdminQuestionsPage user={auth.user} evaluationType="direct_report_review" />} />
                 <Route path="/admin/results" element={<AdminPage icon={BarChart3} title="평가 결과 열람" />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>

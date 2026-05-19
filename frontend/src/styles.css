@@ -30,7 +30,8 @@ a {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
@@ -224,6 +225,7 @@ select {
 .dashboard-hero p {
   margin: 10px 0 0;
   color: #64748b;
+  white-space: pre-line;
 }
 
 .role-stack {
@@ -248,7 +250,7 @@ select {
 
 .meta-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -293,6 +295,10 @@ select {
 
 .page-heading .eyebrow {
   margin-top: 0;
+}
+
+.page-heading .markdown-block {
+  margin-top: 12px;
 }
 
 .section-grid {
@@ -368,12 +374,13 @@ select {
 
 .role-select-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 10px;
 }
 
 .admin-form input,
-.admin-form select {
+.admin-form select,
+.admin-form textarea {
   min-width: 0;
   min-height: 42px;
   width: 100%;
@@ -384,10 +391,164 @@ select {
   background: #ffffff;
 }
 
+.admin-form textarea {
+  min-height: 90px;
+  padding: 10px 12px;
+  resize: vertical;
+}
+
 .admin-form input:focus,
-.admin-form select:focus {
+.admin-form select:focus,
+.admin-form textarea:focus {
   outline: 2px solid #bfdbfe;
   border-color: #2563eb;
+}
+
+.question-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(120px, 0.4fr) auto;
+  align-items: start;
+}
+
+.question-form textarea {
+  grid-column: 1 / -2;
+}
+
+.question-list {
+  display: grid;
+  gap: 10px;
+}
+
+.question-list h3 {
+  margin: 6px 0 0;
+  color: #0f172a;
+  font-size: 15px;
+}
+
+.question-row {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+.question-row > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.question-row strong {
+  color: #0f172a;
+}
+
+.question-row span {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.guide-editor {
+  width: 100%;
+  min-height: 150px;
+  padding: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  resize: vertical;
+}
+
+.markdown-block {
+  display: grid;
+  gap: 8px;
+  color: #475569;
+}
+
+.markdown-block h3,
+.markdown-block p,
+.markdown-block ul {
+  margin: 0;
+}
+
+.markdown-block h3 {
+  color: #0f172a;
+  font-size: 16px;
+}
+
+.markdown-block ul {
+  padding-left: 20px;
+}
+
+.markdown-block code {
+  padding: 1px 5px;
+  border-radius: 6px;
+  color: #1e40af;
+  background: #eff6ff;
+}
+
+.question-create-bubble {
+  padding: 14px;
+  border: 1px solid #dce6f4;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+.question-table-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+}
+
+.question-table-form.weighted {
+  grid-template-columns: minmax(0, 1fr) minmax(120px, 0.28fr) auto;
+}
+
+.question-table-form input,
+.question-table-form textarea {
+  min-width: 0;
+  min-height: 42px;
+  width: 100%;
+  padding: 0 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+}
+
+.question-table-form textarea {
+  grid-column: 1 / -1;
+  min-height: 42px;
+  height: auto;
+  field-sizing: content;
+  padding: 10px 12px;
+  resize: none;
+  overflow: hidden;
+}
+
+.question-table-wrap {
+  overflow-x: auto;
+}
+
+.question-table {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+}
+
+.question-table th,
+.question-table td {
+  padding: 11px 10px;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+  vertical-align: top;
+}
+
+.question-table th {
+  color: #0f172a;
+  background: #f8fbff;
+  font-size: 13px;
 }
 
 .inline-button {
@@ -408,6 +569,27 @@ select {
 
 .inline-button:hover {
   background: #1e40af;
+}
+
+.secondary-inline-button {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  color: #475569;
+  background: #ffffff;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.secondary-inline-button:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
 }
 
 .ghost-icon-button {
@@ -492,7 +674,7 @@ select {
 }
 
 .org-wide-canvas {
-  min-height: calc(100vh - 126px);
+  height: calc(100vh - 126px);
   overflow: auto;
   padding: 28px;
   border: 1px solid #dce6f4;
@@ -677,6 +859,7 @@ select {
 }
 
 .node-inline-form {
+  scroll-margin: 28px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
@@ -698,6 +881,13 @@ select {
 
 .node-inline-form select {
   grid-column: 1 / -1;
+}
+
+.inline-form-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .user-search-results {
@@ -873,6 +1063,122 @@ select {
   gap: 12px;
   color: #1d4ed8;
   text-align: center;
+}
+
+.evaluation-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.evaluation-question-panel textarea {
+  width: 100%;
+  min-height: 180px;
+  padding: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  resize: vertical;
+}
+
+.evaluation-question-panel p {
+  margin: 6px 0 0;
+  color: #64748b;
+}
+
+.question-action-row,
+.toolbar-row,
+.submit-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.question-action-row span {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.team-context-row {
+  min-height: 96px;
+  display: flex;
+  align-items: center;
+  padding: 18px;
+  border: 1px solid #dce6f4;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
+}
+
+.team-context-row:hover {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.team-context-row div,
+.target-label {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.team-context-row strong,
+.target-label strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #0f172a;
+}
+
+.team-context-row span,
+.target-label span {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.evaluation-table-panel {
+  overflow: hidden;
+}
+
+.evaluation-table-wrap {
+  overflow: auto;
+}
+
+.evaluation-table {
+  width: 100%;
+  min-width: 780px;
+  border-collapse: collapse;
+}
+
+.evaluation-table th,
+.evaluation-table td {
+  padding: 10px;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+  vertical-align: top;
+}
+
+.evaluation-table th {
+  color: #0f172a;
+  background: #f8fbff;
+  font-size: 13px;
+}
+
+.evaluation-table th span {
+  display: block;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.evaluation-table input {
+  width: 86px;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+}
+
+.score-total {
+  color: #1e40af;
+  font-weight: 800;
 }
 
 .blank-page p {

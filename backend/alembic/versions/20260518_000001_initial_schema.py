@@ -32,17 +32,6 @@ def upgrade() -> None:
         """
         DO $$
         BEGIN
-            CREATE TYPE organization_role AS ENUM ('staff', 'manager');
-        EXCEPTION
-            WHEN duplicate_object THEN NULL;
-        END
-        $$;
-        """
-    )
-    op.execute(
-        """
-        DO $$
-        BEGIN
             CREATE TYPE oauth_status AS ENUM ('pending', 'completed', 'denied', 'failed', 'expired');
         EXCEPTION
             WHEN duplicate_object THEN NULL;
@@ -63,7 +52,6 @@ def upgrade() -> None:
     )
 
     system_role = postgresql.ENUM("user", "admin", name="system_role", create_type=False)
-    organization_role = postgresql.ENUM("staff", "manager", name="organization_role", create_type=False)
     oauth_status = postgresql.ENUM("pending", "completed", "denied", "failed", "expired", name="oauth_status", create_type=False)
     organization_node_type = postgresql.ENUM("company", "head", "team", name="organization_node_type", create_type=False)
 
@@ -85,7 +73,6 @@ def upgrade() -> None:
         sa.Column("email", sa.String(length=320), nullable=False),
         sa.Column("display_name", sa.String(length=200), nullable=True),
         sa.Column("system_role", system_role, nullable=False),
-        sa.Column("organization_role", organization_role, nullable=False),
         sa.Column("is_whitelisted", sa.Boolean(), nullable=False),
         sa.Column("organization_node_id", sa.Integer(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
@@ -154,5 +141,4 @@ def downgrade() -> None:
 
     sa.Enum(name="organization_node_type").drop(op.get_bind(), checkfirst=True)
     sa.Enum(name="oauth_status").drop(op.get_bind(), checkfirst=True)
-    sa.Enum(name="organization_role").drop(op.get_bind(), checkfirst=True)
     sa.Enum(name="system_role").drop(op.get_bind(), checkfirst=True)

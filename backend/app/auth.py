@@ -12,7 +12,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.config import Settings
-from app.db.postgres.models import OAuthStatus, OAuthTransaction, OrganizationRole, SystemRole, User, UserSession, UserWhitelist
+from app.db.postgres.models import OAuthStatus, OAuthTransaction, SystemRole, User, UserSession, UserWhitelist
 
 
 def now_utc() -> datetime:
@@ -169,13 +169,11 @@ def seed_initialization_user(db: Session, initialization_email: str) -> None:
         user = User(
             email=normalized_email,
             system_role=SystemRole.admin,
-            organization_role=OrganizationRole.manager,
             organization_node_id=None,
         )
         db.add(user)
     else:
         user.system_role = SystemRole.admin
-        user.organization_role = OrganizationRole.manager
         user.organization_node_id = None
     db.commit()
 
