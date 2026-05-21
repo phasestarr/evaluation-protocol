@@ -27,7 +27,7 @@ All verification and tests must run through Docker Compose. `backend/.venv`, `fr
 - `idle` is the only state where admin mutation is allowed.
 - `running` locks whitelist, user, organization, membership, question, and guide edits.
 - Starting a cycle snapshots the current user/tree/question/guide state and creates assignments.
-- Stopping a cycle closes the current snapshot and returns to `idle`.
+- Stopping a cycle closes the current snapshot, clears live setup tables, and returns to `idle`.
 - If a user or question was missed, stop the current cycle, edit while idle, and start a new cycle.
 - Treat `evaluation_system_state` id `1` as the state-machine serialization row. Start/stop code must lock it in the same DB transaction before checking or changing `status` and `current_cycle_id`.
 - Do not create cycles through ad hoc SQL while the system state is `running`.
@@ -40,6 +40,12 @@ Required race handling:
 - Check `status` only after the lock is held.
 - Create the cycle, snapshot rows, assignments, and state update in one transaction.
 - On failure before commit, the whole attempted cycle start should roll back.
+
+Stop behavior:
+
+- Keep the closed cycle snapshot and result rows.
+- Clear imported organization users, live memberships, live non-root organization nodes, peer-review teams, live question templates, and live guides.
+- Do not delete user sessions or historical cycle snapshots as part of normal stop.
 
 ## Cascade Rules
 
@@ -122,6 +128,8 @@ Live templates:
 
 Effective weights are calculated from the active questions in the same evaluation type and scope. For `manager_detail`, the scope is the team. Running evaluations calculate from the cycle question snapshot, not the live template table.
 
+Question creation requires a non-empty title and description; weighted types also require `weight > 0`. Setup readiness requires a non-empty screen guide plus at least one active question. For `manager_detail`, the common guide must be non-empty and every live organization team must have at least one active team-scoped question.
+
 Use only the canonical values `self`, `peer`, and `manager_detail` in code, DB rows, and docs. Do not introduce alternate internal names for 팀원평가.
 
 ## Role Rules
@@ -139,6 +147,8 @@ Do not reintroduce a global `staff/manager` user role.
 - Starting a cycle snapshots peer teams into `evaluation_peer_team_snapshots` and `evaluation_peer_team_member_snapshots`.
 - Every member in a peer team evaluates every member in that peer team, including self.
 - Peer questions remain global across all peer teams.
+- Each peer target is scored out of 100 after effective weights are applied.
+- Weighted score saves are rejected when the reviewer's average total score across peer targets in the same peer team exceeds 50.
 
 ## Manager Detail Rules
 
@@ -147,6 +157,8 @@ Do not reintroduce a global `staff/manager` user role.
 - Team `leader` memberships evaluate that team's `member` memberships.
 - Head-level `leader` and `member` memberships evaluate all `leader` and `member` memberships in teams under that head.
 - Runtime manager-detail assignments and scores are cycle-owned and must not read live organization rows after cycle start.
+- Each manager-detail target is scored out of 100 after effective weights are applied.
+- Manager-detail does not apply the peer-review average-50 relative-rating constraint.
 
 ## Cache Rules
 

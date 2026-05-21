@@ -1,0 +1,31 @@
+.question-table-wrap {
+  overflow-x: auto;
+}
+
+.question-table-frame {
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid #dce6f4;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.question-table {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+}
+
+.question-table th,
+.question-table td {
+  padding: 11px 10px;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+  vertical-align: top;
+}
+
+.question-table th {
+  color: #0f172a;
+  background: #f8fbff;
+  font-size: 13px;
+}

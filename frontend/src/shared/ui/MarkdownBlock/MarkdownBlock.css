@@ -1,0 +1,27 @@
+.markdown-block {
+  display: grid;
+  gap: 8px;
+  color: #475569;
+}
+
+.markdown-block h3,
+.markdown-block p,
+.markdown-block ul {
+  margin: 0;
+}
+
+.markdown-block h3 {
+  color: #0f172a;
+  font-size: 16px;
+}
+
+.markdown-block ul {
+  padding-left: 20px;
+}
+
+.markdown-block code {
+  padding: 1px 5px;
+  border-radius: 6px;
+  color: #1e40af;
+  background: #eff6ff;
+}

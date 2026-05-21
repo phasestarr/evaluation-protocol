@@ -1,0 +1,50 @@
+.dashboard-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 28px 0 8px;
+  border-bottom: 1px solid #dce6f4;
+}
+
+.dashboard-hero .eyebrow {
+  margin-top: 0;
+}
+
+.dashboard-hero h1 {
+  margin: 0;
+  color: #0f172a;
+  font-size: clamp(30px, 4vw, 42px);
+  line-height: 1.15;
+}
+
+.dashboard-hero p {
+  margin: 10px 0 0;
+  color: #64748b;
+  white-space: pre-line;
+}
+
+.dashboard-hero .role-stack {
+  justify-content: flex-end;
+}
+
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 760px) {
+  .dashboard-hero {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .dashboard-hero .role-stack {
+    justify-content: flex-start;
+  }
+
+  .meta-grid {
+    grid-template-columns: 1fr;
+  }
+}

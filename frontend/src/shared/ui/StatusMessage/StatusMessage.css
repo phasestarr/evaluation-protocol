@@ -1,0 +1,14 @@
+.admin-message {
+  padding: 10px 12px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  color: #1e40af;
+  background: #eff6ff;
+  font-size: 14px;
+}
+
+.admin-message.error {
+  border-color: #fecaca;
+  color: #991b1b;
+  background: #fff1f2;
+}

@@ -56,7 +56,7 @@ Internal HR evaluation stack behind sibling `root-proxy`.
 cd backend
 py -3.13 -m venv .venv
 .venv\Scripts\python -m pip install --upgrade pip
-.venv\Scripts\python -m pip install -r requirements.txt
+.venv\Scripts\python -m pip install -r requirements.txt -e .
 .venv\Scripts\python -m compileall app
 cd ..\frontend
 npm install
@@ -64,11 +64,11 @@ npm run typecheck
 npm run build
 ```
 
-- That command sequence recreates `backend/.venv`, `frontend/node_modules`, and `frontend/dist` from a missing-artifact state.
+- That command sequence recreates `backend/.venv`, installs backend dependencies, installs the local `app` package in editable mode for IDE import resolution, and recreates `frontend/node_modules` and `frontend/dist` from a missing-artifact state.
 - Do not use local `npm run build`, `npm run typecheck`, `python -m compileall`, local dev servers, or local PostgreSQL as validation gates.
 - In IntelliJ IDEA:
   - set the Python SDK to `backend/.venv/Scripts/python.exe`
-  - mark `backend/` as a Sources Root if `from app...` imports still show unresolved
+  - use the editable backend install above for `from app...` import resolution; mark `backend/` as a Sources Root only if the IDE still shows unresolved imports
   - keep the frontend Node interpreter pointed at a local Node installation
   - let the IDE use `frontend/package.json`, `frontend/node_modules`, and `frontend/tsconfig.json`
 

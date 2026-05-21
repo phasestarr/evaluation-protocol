@@ -1,0 +1,18 @@
+.evaluation-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.evaluation-question-panel textarea {
+  width: 100%;
+  min-height: 180px;
+  padding: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  resize: vertical;
+}
+
+.evaluation-question-panel p {
+  margin: 6px 0 0;
+  color: #64748b;
+}

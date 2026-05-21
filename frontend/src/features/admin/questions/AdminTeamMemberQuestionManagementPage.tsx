@@ -1,0 +1,1 @@
+export { AdminTeamMemberQuestionManagementPage } from "./AdminQuestionManagementShared";

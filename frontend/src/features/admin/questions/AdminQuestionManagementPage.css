@@ -1,0 +1,44 @@
+.guide-editor {
+  width: 100%;
+  min-height: 150px;
+  padding: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  resize: vertical;
+}
+
+.question-create-bubble {
+  padding: 14px;
+  border: 1px solid #dce6f4;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+.question-table-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+}
+
+.question-table-form.weighted {
+  grid-template-columns: minmax(0, 1fr) minmax(120px, 0.28fr) auto;
+}
+
+.question-table-form input,
+.question-table-form textarea {
+  min-width: 0;
+  min-height: 42px;
+  width: 100%;
+  padding: 0 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+}
+
+.question-table-form textarea {
+  grid-column: 1 / -1;
+  min-height: 42px;
+  padding: 10px 12px;
+  resize: none;
+  overflow: hidden;
+}

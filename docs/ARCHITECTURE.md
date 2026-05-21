@@ -71,6 +71,8 @@ The system has one global evaluation state row in `evaluation_system_state`.
 
 Starting an evaluation creates a new `evaluation_cycles` row and snapshots the current live state into cycle-scoped tables. Stopping an evaluation closes the current cycle and returns the system to `idle`. Closed cycle data remains for later result viewing or explicit deletion.
 
+Stopping an evaluation also clears the live setup tables for the next cycle: imported organization users, live memberships, non-root organization nodes, peer-review teams, live question templates, and live guides. The closed cycle keeps its own snapshots for result viewing and future restore flows.
+
 Start/stop transitions should treat `evaluation_system_state` as the serialization point. Code that changes the global state must lock that row in the database transaction before checking or updating it, so two admins cannot start overlapping cycles.
 
 The DB also enforces valid state values and allows at most one `running` cycle.
@@ -86,6 +88,8 @@ The canonical evaluation type values are:
 Live `evaluation_questions` and `evaluation_guides` are templates only. User-facing running evaluations use `evaluation_cycle_questions` and `evaluation_cycle_guides` snapshots.
 
 `self` and `peer` questions are global for the evaluation type. `manager_detail` questions are scoped to a live organization `team` node through `evaluation_questions.organization_node_id`, and are snapshotted onto the matching team snapshot when a cycle starts.
+
+Question creation requires a title and description; weighted evaluation types also require a positive weight. Admin readiness marks a question-management area complete only when its screen guide is non-empty and at least one active question exists. For `manager_detail`, the common guide must be non-empty and every live organization team must have at least one active team-scoped question.
 
 ## Cycle Snapshot Model
 
