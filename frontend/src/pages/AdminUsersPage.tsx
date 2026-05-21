@@ -1,8 +1,9 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Trash2, UserPlus } from "lucide-react";
-import { addWhitelistEmail, deleteWhitelistEmail, fetchAdminUsers } from "../api";
+import { addWhitelistEmail, deleteWhitelistEmail, fetchAdminUsers, fetchEvaluationState } from "../api";
+import { StatusMessage } from "../components/StatusMessage";
 import { systemRoleLabel } from "../labels";
-import type { AdminUsersResponse, CurrentUser, SystemRole } from "../types";
+import type { AdminUsersResponse, CurrentUser, EvaluationSystemStateResponse, SystemRole } from "../types";
 import { AccessDeniedPage } from "./AccessDeniedPage";
 
 export function AdminUsersPage({ user }: { user: CurrentUser | null }) {
@@ -12,6 +13,7 @@ export function AdminUsersPage({ user }: { user: CurrentUser | null }) {
   const [displayName, setDisplayName] = useState("");
   const [systemRole, setSystemRole] = useState<SystemRole>("user");
   const [message, setMessage] = useState<string | null>(null);
+  const [state, setState] = useState<EvaluationSystemStateResponse | null>(null);
   const sortedWhitelist = useMemo(
     () => [...(data?.whitelist ?? [])].sort((a, b) => a.email.localeCompare(b.email)),
     [data?.whitelist],
@@ -27,12 +29,17 @@ export function AdminUsersPage({ user }: { user: CurrentUser | null }) {
   useEffect(() => {
     if (user?.system_role === "admin") {
       loadUsers(setData, setMessage);
+      fetchEvaluationState()
+        .then(setState)
+        .catch((error) => setMessage(error instanceof Error ? error.message : "평가 상태를 불러오지 못했습니다."));
     }
   }, [user?.system_role]);
 
   if (user?.system_role !== "admin") {
     return <AccessDeniedPage />;
   }
+
+  const isLocked = state?.status === "running";
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -82,39 +89,42 @@ export function AdminUsersPage({ user }: { user: CurrentUser | null }) {
             <input
               type="email"
               value={email}
-              placeholder="name@nextinsol.com"
+              placeholder="name@example.com"
               onChange={(event) => setEmail(event.target.value)}
               required
+              disabled={isLocked}
             />
             <input
               value={jobTitle}
               placeholder="직급"
               onChange={(event) => setJobTitle(event.target.value)}
               required
+              disabled={isLocked}
             />
             <input
               value={displayName}
               placeholder="이름"
               onChange={(event) => setDisplayName(event.target.value)}
               required
+              disabled={isLocked}
             />
             <div className="role-select-grid">
-              <select value={systemRole} onChange={(event) => setSystemRole(event.target.value as SystemRole)}>
-                <option value="user">직원</option>
+              <select value={systemRole} onChange={(event) => setSystemRole(event.target.value as SystemRole)} disabled={isLocked}>
                 <option value="admin">관리자</option>
+                <option value="user">직원</option>
               </select>
             </div>
-            <button className="inline-button" type="submit">
+            <button className="inline-button" type="submit" disabled={isLocked}>
               <UserPlus size={17} />
               추가
             </button>
           </form>
-          {message && <div className="admin-message error">{message}</div>}
+          <StatusMessage message={message} />
           <div className="list-stack">
             {sortedWhitelist.map((entry) => (
               <div className="list-row" key={entry.id}>
                 <strong>{entry.email}</strong>
-                <button className="ghost-icon-button" type="button" title="삭제" onClick={() => removeWhitelistEmail(entry.email)}>
+                <button className="ghost-icon-button" type="button" title="삭제" onClick={() => removeWhitelistEmail(entry.email)} disabled={isLocked}>
                   <Trash2 size={16} />
                 </button>
               </div>

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -12,10 +12,12 @@ from app.api.v1.schemas import (
 )
 from app.auth import is_initialization_email
 from app.config import get_settings
-from app.db.postgres.models import SystemRole, User, UserWhitelist
+from app.constants import MANAGER_DETAIL
+from app.db.postgres.models import EvaluationQuestion, OrganizationNode, OrganizationNodeType, SystemRole, User, UserWhitelist
 from app.db.postgres.session import get_db
 from app.services.authz import require_admin, require_admin_idle
 from app.services.evaluation import (
+    admin_readiness,
     create_question,
     delete_question,
     evaluation_guide_content,
@@ -38,6 +40,8 @@ from app.services.organization import (
     serialize_membership,
     serialize_org_node,
 )
+from app.services.org_import import import_organization_csv, list_imported_users
+from app.services.peer_teams import import_peer_teams_csv, list_peer_teams
 from app.services.text import normalize_email, normalize_optional_text
 from app.services.users import serialize_admin_user, visible_users
 
@@ -51,9 +55,18 @@ def admin_evaluation_state(request: Request, db: Session = Depends(get_db)) -> d
     return serialize_system_state(get_system_state(db))
 
 
+@router.get("/api/admin/readiness")
+def admin_evaluation_readiness(request: Request, db: Session = Depends(get_db)) -> dict:
+    require_admin(request, db)
+    return admin_readiness(db)
+
+
 @router.post("/api/admin/evaluation-state/start")
 def admin_start_evaluation_cycle(payload: StartCycleIn, request: Request, db: Session = Depends(get_db)) -> dict:
     require_admin_idle(request, db)
+    readiness = admin_readiness(db)
+    if not readiness["ready"]:
+        raise HTTPException(status_code=409, detail="Evaluation setup is incomplete")
     name = payload.name.strip()
     if not name:
         raise HTTPException(status_code=400, detail="Evaluation name is required")
@@ -162,6 +175,10 @@ def admin_search_users(request: Request, q: str = Query(default=""), db: Session
 @router.get("/api/admin/org/tree")
 def admin_org_tree(request: Request, db: Session = Depends(get_db)) -> dict:
     require_admin(request, db)
+    return serialize_admin_org_tree(db)
+
+
+def serialize_admin_org_tree(db: Session) -> dict:
     nodes, memberships = organization_tree(db)
     whitelist = db.scalars(
         select(UserWhitelist)
@@ -171,11 +188,36 @@ def admin_org_tree(request: Request, db: Session = Depends(get_db)) -> dict:
     return {
         "nodes": [serialize_org_node(node, memberships) for node in nodes],
         "users": [serialize_admin_user(user) for user in visible_users(db)],
+        "imported_people": list_imported_users(db),
         "whitelist": [
             {"id": row.id, "email": row.email, "created_at": row.created_at.isoformat() if row.created_at else None}
             for row in whitelist
         ],
     }
+
+
+@router.post("/api/admin/org/import-csv")
+def admin_import_org_csv(request: Request, file: UploadFile = File(...), db: Session = Depends(get_db)) -> dict:
+    require_admin_idle(request, db)
+    if not (file.filename or "").lower().endswith(".csv"):
+        raise HTTPException(status_code=400, detail="CSV file is required")
+    result = import_organization_csv(db, file.file.read())
+    result["tree"] = serialize_admin_org_tree(db)
+    return result
+
+
+@router.get("/api/admin/peer-teams")
+def admin_peer_teams(request: Request, db: Session = Depends(get_db)) -> dict:
+    require_admin(request, db)
+    return {"teams": list_peer_teams(db)}
+
+
+@router.post("/api/admin/peer-teams/import-csv")
+def admin_import_peer_teams_csv(request: Request, file: UploadFile = File(...), db: Session = Depends(get_db)) -> dict:
+    require_admin_idle(request, db)
+    if not (file.filename or "").lower().endswith(".csv"):
+        raise HTTPException(status_code=400, detail="CSV file is required")
+    return import_peer_teams_csv(db, file.file.read())
 
 
 @router.post("/api/admin/org/nodes")
@@ -222,10 +264,23 @@ def admin_questions(request: Request, db: Session = Depends(get_db)) -> dict[str
     return {"questions": serialize_questions_with_effective_weights(list_questions(db))}
 
 
+@router.get("/api/admin/questions/manager-detail/teams")
+def admin_manager_detail_question_teams(request: Request, db: Session = Depends(get_db)) -> dict[str, list[dict]]:
+    require_admin(request, db)
+    return {"teams": serialize_manager_detail_question_teams(db)}
+
+
 @router.post("/api/admin/questions")
 def admin_create_question(payload: EvaluationQuestionCreateIn, request: Request, db: Session = Depends(get_db)) -> dict:
     require_admin_idle(request, db)
-    question = create_question(db, payload.evaluation_type, payload.title, payload.description, payload.weight)
+    question = create_question(
+        db,
+        payload.evaluation_type,
+        payload.title,
+        payload.description,
+        payload.weight,
+        payload.organization_node_id,
+    )
     return serialize_question(question, effective_weight_percent=None)
 
 
@@ -260,3 +315,39 @@ def parse_system_role(value: str) -> SystemRole:
         return SystemRole(value)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail="Invalid system role") from exc
+
+
+def serialize_manager_detail_question_teams(db: Session) -> list[dict]:
+    nodes, _ = organization_tree(db)
+    node_by_id = {node.id: node for node in nodes}
+    question_counts: dict[int, int] = {}
+    questions = db.scalars(
+        select(EvaluationQuestion).where(EvaluationQuestion.evaluation_type == MANAGER_DETAIL)
+    ).all()
+    for question in questions:
+        if question.organization_node_id is not None:
+            question_counts[question.organization_node_id] = question_counts.get(question.organization_node_id, 0) + 1
+
+    teams = [node for node in nodes if node.node_type == OrganizationNodeType.team]
+    return [
+        {
+            "id": team.id,
+            "name": team.name,
+            "parent_id": team.parent_id,
+            "path": organization_node_path(team, node_by_id),
+            "question_count": question_counts.get(team.id, 0),
+        }
+        for team in teams
+    ]
+
+
+def organization_node_path(node: OrganizationNode, node_by_id: dict[int, OrganizationNode]) -> str:
+    names = [node.name]
+    parent_id = node.parent_id
+    while parent_id is not None:
+        parent = node_by_id.get(parent_id)
+        if parent is None:
+            break
+        names.append(parent.name)
+        parent_id = parent.parent_id
+    return " > ".join(reversed(names))

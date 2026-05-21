@@ -20,13 +20,18 @@ class Settings(BaseSettings):
     microsoft_redirect_path: str = "/api/v1/auth/callback/microsoft"
     microsoft_scopes: str = '["openid","email","User.Read"]'
 
-    initialization_email: str = "swlicense@nextinsol.com"
+    initialization_email: str = "bootstrap@example.com"
+    company_email_domain: str = "example.com"
     frontend_success_url: str = "/"
     frontend_failure_url: str = "/login"
 
     @property
     def initialization_email_normalized(self) -> str:
         return self.initialization_email.strip().lower()
+
+    @property
+    def company_email_domain_normalized(self) -> str:
+        return self.company_email_domain.strip().lower().lstrip("@")
 
     @property
     def microsoft_scope_value(self) -> str:

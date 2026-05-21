@@ -1,37 +1,49 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CheckSquare, Shield, UserRound, UsersRound } from "lucide-react";
+import { fetchEvaluationProgress } from "../api";
 import { ActionCard } from "../components/ActionCard";
 import { InfoBlock } from "../components/InfoBlock";
 import { systemRoleLabel } from "../labels";
-import type { Action, CurrentUser } from "../types";
+import type { Action, CompletionStatus, CurrentUser, EvaluationProgressResponse } from "../types";
 
 export function DashboardPage({ user }: { user: CurrentUser }) {
+  const [progress, setProgress] = useState<EvaluationProgressResponse | null>(null);
+
+  useEffect(() => {
+    fetchEvaluationProgress()
+      .then(setProgress)
+      .catch(() => setProgress(null));
+  }, []);
+
   const evaluationActions = useMemo<Action[]>(() => {
     const base: Action[] = [
       {
         to: "/self-review",
         title: "자기평가",
         description: "본인 평가 입력",
-        icon: UserRound
+        icon: UserRound,
+        completion: completionFromProgress(progress?.self.complete)
       },
       {
         to: "/peer-review",
         title: "동료평가",
-        description: "동료평가 입력",
-        icon: UsersRound
+        description: progress?.peer ? `완료 ${progress.peer.completed_count}/${progress.peer.total_count}팀` : "동료평가 입력",
+        icon: UsersRound,
+        completion: completionFromProgress(progress?.peer.complete)
       }
     ];
 
-    if (user.has_leader_membership) {
-      base.push({
-        to: "/manager-detail-review",
-        title: "팀원평가",
-        description: "소속 팀원 평가",
-        icon: CheckSquare
-      });
-    }
+    base.push({
+      to: "/manager-detail-review",
+      title: "팀원평가",
+      description: progress?.manager_detail
+        ? `완료 ${progress.manager_detail.completed_count}/${progress.manager_detail.total_count}팀`
+        : "소속 팀원 평가",
+      icon: CheckSquare,
+      completion: completionFromProgress(progress?.manager_detail.complete)
+    });
     return base;
-  }, [user.has_leader_membership]);
+  }, [progress]);
 
   return (
     <section className="dashboard">
@@ -70,6 +82,11 @@ export function DashboardPage({ user }: { user: CurrentUser }) {
       )}
     </section>
   );
+}
+
+function completionFromProgress(value: boolean | undefined): CompletionStatus | undefined {
+  if (value === undefined) return undefined;
+  return value ? "complete" : "incomplete";
 }
 
 function WorkSection({ title, actions }: { title: string; actions: Action[] }) {

@@ -18,11 +18,10 @@ def seed_root_organization(db: Session) -> None:
         select(OrganizationNode).where(
             OrganizationNode.node_type == OrganizationNodeType.company,
             OrganizationNode.parent_id.is_(None),
-            OrganizationNode.name == "NEXTIN",
         )
     )
     if root is None:
-        db.add(OrganizationNode(name="NEXTIN", node_type=OrganizationNodeType.company))
+        db.add(OrganizationNode(name="Company", node_type=OrganizationNodeType.company))
         db.commit()
 
 
@@ -39,14 +38,16 @@ def create_org_node(db: Session, name: str, node_type_value: str, parent_id: int
     if not clean_name:
         raise HTTPException(status_code=400, detail="Name is required")
 
+    if node_type == OrganizationNodeType.company:
+        raise HTTPException(status_code=400, detail="Root company is managed by organization CSV import")
     if node_type != OrganizationNodeType.company and parent_id is None:
         raise HTTPException(status_code=400, detail="Head and team nodes require a parent")
 
     parent = db.get(OrganizationNode, parent_id) if parent_id is not None else None
     if parent_id is not None and parent is None:
         raise HTTPException(status_code=404, detail="Parent node not found")
-    if node_type == OrganizationNodeType.head and parent and parent.node_type != OrganizationNodeType.company:
-        raise HTTPException(status_code=400, detail="Head nodes must be created under a company")
+    if node_type == OrganizationNodeType.head and parent and not is_seed_root_node(parent):
+        raise HTTPException(status_code=400, detail="Head nodes must be created under the root company")
     if node_type == OrganizationNodeType.team and parent and parent.node_type != OrganizationNodeType.head:
         raise HTTPException(status_code=400, detail="Team nodes must be created under a head")
 
@@ -62,7 +63,7 @@ def delete_org_node(db: Session, node_id: int) -> None:
     if node is None:
         return
     if is_seed_root_node(node):
-        raise HTTPException(status_code=400, detail="NEXTIN root node cannot be deleted")
+        raise HTTPException(status_code=400, detail="Root company node cannot be deleted")
 
     subtree_ids = collect_subtree_node_ids(db, node_id)
     db.execute(delete(OrganizationMembership).where(OrganizationMembership.organization_node_id.in_(subtree_ids)))
@@ -173,7 +174,7 @@ def parse_membership_role(value: str) -> OrganizationMembershipRole:
 
 
 def is_seed_root_node(node: OrganizationNode) -> bool:
-    return node.node_type == OrganizationNodeType.company and node.parent_id is None and node.name == "NEXTIN"
+    return node.node_type == OrganizationNodeType.company and node.parent_id is None
 
 
 def collect_subtree_node_ids(db: Session, root_id: int) -> list[int]:

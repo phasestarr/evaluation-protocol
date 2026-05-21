@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { fetchPeerReview, savePeerReviewScores } from "../api";
+import { fetchManagerDetailReview, saveManagerDetailReviewScores } from "../api";
 import { EvaluationQuestionTable } from "../components/EvaluationQuestionTable";
 import { MarkdownBlock } from "../components/MarkdownBlock";
 import { StatusMessage } from "../components/StatusMessage";
 import type { EvaluationQuestion, PeerReviewResponse, PeerReviewTarget } from "../types";
 
-export function PeerReviewDetailPage() {
+export function ManagerDetailReviewDetailPage() {
   const { teamNodeId } = useParams();
   const numericTeamNodeId = Number(teamNodeId);
   const [data, setData] = useState<PeerReviewResponse | null>(null);
@@ -17,12 +17,12 @@ export function PeerReviewDetailPage() {
 
   useEffect(() => {
     if (!Number.isFinite(numericTeamNodeId)) return;
-    fetchPeerReview(numericTeamNodeId)
+    fetchManagerDetailReview(numericTeamNodeId)
       .then((result) => {
         setData(result);
         setDrafts(Object.fromEntries(Object.entries(result.scores).map(([key, value]) => [key, String(value)])));
       })
-      .catch((error) => setMessage(error instanceof Error ? error.message : "동료평가를 불러오지 못했습니다."));
+      .catch((error) => setMessage(error instanceof Error ? error.message : "팀원평가를 불러오지 못했습니다."));
   }, [numericTeamNodeId]);
 
   async function saveScores() {
@@ -41,23 +41,23 @@ export function PeerReviewDetailPage() {
     }
     setMessage(null);
     try {
-      await savePeerReviewScores(numericTeamNodeId, scores);
+      await saveManagerDetailReviewScores(numericTeamNodeId, scores);
       setMessage("저장되었습니다.");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "동료평가를 저장하지 못했습니다.");
+      setMessage(error instanceof Error ? error.message : "팀원평가를 저장하지 못했습니다.");
     }
   }
 
   return (
     <section className="dashboard">
       <div className="page-heading">
-        <p className="eyebrow">Peer Review</p>
-        <h1>{data?.team.title || "동료평가"}</h1>
+        <p className="eyebrow">Manager Detail</p>
+        <h1>{data?.team.title || "팀원평가"}</h1>
         <MarkdownBlock content={data?.guide_content || "문항 설명이 등록되지 않았습니다. 관리자에게 문의해주세요."} />
         <EvaluationQuestionTable questions={questions} weighted framed />
       </div>
       <div className="toolbar-row">
-        <Link className="secondary-inline-button" to="/peer-review">
+        <Link className="secondary-inline-button" to="/manager-detail-review">
           목록
         </Link>
         <button className="inline-button" type="button" onClick={saveScores}>
@@ -109,7 +109,7 @@ export function PeerReviewDetailPage() {
             </tbody>
           </table>
         </div>
-        {data && questions.length === 0 && <p className="empty-copy">등록된 동료평가 문항이 없습니다.</p>}
+        {data && questions.length === 0 && <p className="empty-copy">등록된 팀원평가 문항이 없습니다.</p>}
         {data && targets.length === 0 && <p className="empty-copy">평가 대상자가 없습니다.</p>}
       </div>
     </section>

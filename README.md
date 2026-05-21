@@ -15,7 +15,7 @@ Internal HR evaluation stack behind sibling `root-proxy`.
 - env initialization account and DB whitelist enforcement before user creation
 - `user/admin` system role
 - user whitelist administration
-- organization tree administration under seeded `NEXTIN`
+- organization tree administration under seeded company node
 - multiple leaders and multi-department membership support through organization memberships
 - hourly cleanup for expired/revoked sessions and stale/completed OAuth transactions
 

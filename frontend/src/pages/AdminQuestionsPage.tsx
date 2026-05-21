@@ -1,14 +1,25 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { Link, useParams } from "react-router-dom";
 import { Trash2 } from "lucide-react";
 import {
   createEvaluationQuestion,
   deleteEvaluationQuestion,
   fetchAdminQuestions,
+  fetchEvaluationState,
   fetchEvaluationGuide,
+  fetchManagerDetailQuestionTeams,
   saveEvaluationGuide,
 } from "../api";
+import { CompletionBadge } from "../components/ActionCard";
 import { MarkdownBlock } from "../components/MarkdownBlock";
-import type { AdminQuestionsResponse, EvaluationQuestion, EvaluationType } from "../types";
+import { StatusMessage } from "../components/StatusMessage";
+import type {
+  AdminQuestionsResponse,
+  EvaluationQuestion,
+  EvaluationSystemStateResponse,
+  EvaluationType,
+  ManagerDetailQuestionTeam,
+} from "../types";
 import type { CurrentUser } from "../types";
 import { AccessDeniedPage } from "./AccessDeniedPage";
 
@@ -18,7 +29,17 @@ const questionPageMeta: Record<EvaluationType, { title: string; eyebrow: string;
   manager_detail: { title: "팀원평가 문항 관리", eyebrow: "Manager Detail", weighted: true },
 };
 
-export function AdminQuestionsPage({ user, evaluationType }: { user: CurrentUser | null; evaluationType: EvaluationType }) {
+export function AdminQuestionsPage({
+  user,
+  evaluationType,
+  organizationNodeId = null,
+  contextTitle,
+}: {
+  user: CurrentUser | null;
+  evaluationType: EvaluationType;
+  organizationNodeId?: number | null;
+  contextTitle?: string;
+}) {
   const meta = questionPageMeta[evaluationType];
   const [data, setData] = useState<AdminQuestionsResponse | null>(null);
   const [guide, setGuide] = useState("");
@@ -26,14 +47,23 @@ export function AdminQuestionsPage({ user, evaluationType }: { user: CurrentUser
   const [description, setDescription] = useState("");
   const [weight, setWeight] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+  const [state, setState] = useState<EvaluationSystemStateResponse | null>(null);
   const questions = useMemo(
-    () => (data?.questions ?? []).filter((question) => question.evaluation_type === evaluationType),
-    [data?.questions, evaluationType],
+    () =>
+      (data?.questions ?? []).filter(
+        (question) =>
+          question.evaluation_type === evaluationType
+          && (question.organization_node_id ?? null) === organizationNodeId,
+      ),
+    [data?.questions, evaluationType, organizationNodeId],
   );
 
   useEffect(() => {
     if (user?.system_role === "admin") {
       loadQuestions(setData, setMessage);
+      fetchEvaluationState()
+        .then(setState)
+        .catch((error) => setMessage(error instanceof Error ? error.message : "평가 상태를 불러오지 못했습니다."));
       fetchEvaluationGuide(evaluationType)
         .then((result) => setGuide(result.content))
         .catch((error) => setMessage(error instanceof Error ? error.message : "안내문을 불러오지 못했습니다."));
@@ -44,6 +74,8 @@ export function AdminQuestionsPage({ user, evaluationType }: { user: CurrentUser
     return <AccessDeniedPage />;
   }
 
+  const isLocked = state?.status === "running";
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage(null);
@@ -53,6 +85,7 @@ export function AdminQuestionsPage({ user, evaluationType }: { user: CurrentUser
         title,
         description,
         weight: meta.weighted ? Number(weight) : null,
+        organization_node_id: organizationNodeId,
       });
       setTitle("");
       setDescription("");
@@ -87,14 +120,14 @@ export function AdminQuestionsPage({ user, evaluationType }: { user: CurrentUser
     <section className="dashboard">
       <div className="page-heading">
         <p className="eyebrow">{meta.eyebrow}</p>
-        <h1>{meta.title}</h1>
+        <h1>{contextTitle ? `${contextTitle} 문항 관리` : meta.title}</h1>
         <p>안내문과 문항을 관리합니다. 안내문은 사용자 평가 화면에 표시됩니다.</p>
       </div>
-      {message && <div className="admin-message">{message}</div>}
+      <StatusMessage message={message} />
       <section className="surface-panel">
         <div className="panel-title-row">
           <h2>화면 안내문</h2>
-          <button className="inline-button" type="button" onClick={saveGuide}>
+          <button className="inline-button" type="button" onClick={saveGuide} disabled={isLocked}>
             저장
           </button>
         </div>
@@ -103,6 +136,7 @@ export function AdminQuestionsPage({ user, evaluationType }: { user: CurrentUser
           value={guide}
           placeholder="Markdown 형식으로 안내문을 입력하세요."
           onChange={(event) => setGuide(event.target.value)}
+          disabled={isLocked}
         />
         <MarkdownBlock content={guide} />
       </section>
@@ -113,7 +147,7 @@ export function AdminQuestionsPage({ user, evaluationType }: { user: CurrentUser
         </div>
         <div className="question-create-bubble">
           <form className={`question-table-form ${meta.weighted ? "weighted" : ""}`} onSubmit={submit}>
-            <input value={title} placeholder="항목" onChange={(event) => setTitle(event.target.value)} required />
+            <input value={title} placeholder="항목" onChange={(event) => setTitle(event.target.value)} required disabled={isLocked} />
             {meta.weighted && (
               <input
                 min={1}
@@ -122,9 +156,10 @@ export function AdminQuestionsPage({ user, evaluationType }: { user: CurrentUser
                 placeholder="가중치"
                 onChange={(event) => setWeight(event.target.value)}
                 required
+                disabled={isLocked}
               />
             )}
-            <button className="inline-button" type="submit">
+            <button className="inline-button" type="submit" disabled={isLocked}>
               추가
             </button>
             <textarea
@@ -132,22 +167,100 @@ export function AdminQuestionsPage({ user, evaluationType }: { user: CurrentUser
               placeholder="설명"
               rows={1}
               onChange={(event) => setDescription(event.target.value)}
+              disabled={isLocked}
             />
           </form>
         </div>
-        <QuestionTable questions={questions} weighted={meta.weighted} onDelete={removeQuestion} />
+        <QuestionTable questions={questions} weighted={meta.weighted} locked={isLocked} onDelete={removeQuestion} />
       </section>
     </section>
+  );
+}
+
+export function AdminManagerDetailQuestionsPage({ user }: { user: CurrentUser | null }) {
+  const [teams, setTeams] = useState<ManagerDetailQuestionTeam[]>([]);
+  const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user?.system_role === "admin") {
+      fetchManagerDetailQuestionTeams()
+        .then((result) => setTeams(result.teams))
+        .catch((error) => setMessage(error instanceof Error ? error.message : "팀 목록을 불러오지 못했습니다."));
+    }
+  }, [user?.system_role]);
+
+  if (user?.system_role !== "admin") {
+    return <AccessDeniedPage />;
+  }
+
+  return (
+    <section className="dashboard">
+      <div className="page-heading">
+        <p className="eyebrow">Manager Detail</p>
+        <h1>팀원평가 문항 관리</h1>
+        <p>조직도상 Team마다 별도의 팀원평가 문항을 관리합니다.</p>
+      </div>
+      <StatusMessage message={message} />
+      <div className="action-grid">
+        {teams.map((team) => (
+          <Link className="team-context-row" key={team.id} to={`/admin/questions/manager-detail/${team.id}`}>
+            <div>
+              <strong>{team.path}</strong>
+              <span>{team.question_count}개 문항</span>
+            </div>
+            <CompletionBadge status={team.question_count > 0 ? "complete" : "incomplete"} />
+          </Link>
+        ))}
+      </div>
+      {teams.length === 0 && <p className="empty-copy">등록된 조직 Team이 없습니다.</p>}
+    </section>
+  );
+}
+
+export function AdminManagerDetailQuestionsDetailPage({ user }: { user: CurrentUser | null }) {
+  const { teamNodeId } = useParams();
+  const numericTeamNodeId = Number(teamNodeId);
+  const [teams, setTeams] = useState<ManagerDetailQuestionTeam[]>([]);
+  const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user?.system_role === "admin") {
+      fetchManagerDetailQuestionTeams()
+        .then((result) => setTeams(result.teams))
+        .catch((error) => setMessage(error instanceof Error ? error.message : "팀 목록을 불러오지 못했습니다."));
+    }
+  }, [user?.system_role]);
+
+  const team = teams.find((item) => item.id === numericTeamNodeId);
+  if (!Number.isFinite(numericTeamNodeId)) {
+    return <AccessDeniedPage />;
+  }
+  if (message && teams.length === 0) {
+    return (
+      <section className="dashboard">
+        <StatusMessage message={message} />
+      </section>
+    );
+  }
+  return (
+    <AdminQuestionsPage
+      user={user}
+      evaluationType="manager_detail"
+      organizationNodeId={numericTeamNodeId}
+      contextTitle={team?.path}
+    />
   );
 }
 
 function QuestionTable({
   questions,
   weighted,
+  locked,
   onDelete,
 }: {
   questions: EvaluationQuestion[];
   weighted: boolean;
+  locked: boolean;
   onDelete: (questionId: number) => void;
 }) {
   return (
@@ -170,7 +283,7 @@ function QuestionTable({
               {weighted && <td>{question.weight}</td>}
               {weighted && <td>{question.effective_weight_percent ?? 0}%</td>}
               <td>
-                <button className="ghost-icon-button" type="button" title="삭제" onClick={() => onDelete(question.id)}>
+                <button className="ghost-icon-button" type="button" title="삭제" onClick={() => onDelete(question.id)} disabled={locked}>
                   <Trash2 size={16} />
                 </button>
               </td>

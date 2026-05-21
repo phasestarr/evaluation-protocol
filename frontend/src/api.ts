@@ -1,20 +1,30 @@
 import type {
   AdminOrgTreeResponse,
+  AdminReadinessResponse,
   AdminQuestionsResponse,
   AdminUserSearchResponse,
   AdminUsersResponse,
   AuthStatus,
   EvaluationSystemStateResponse,
+  EvaluationProgressResponse,
   EvaluationType,
+  ManagerDetailContextsResponse,
+  ManagerDetailQuestionTeamsResponse,
+  ManagerDetailReviewResponse,
   MembershipRole,
+  OrganizationImportResponse,
   OrganizationNodeType,
   PeerReviewContextsResponse,
   PeerReviewResponse,
+  PeerTeamsResponse,
   SelfReviewResponse,
 } from "./types";
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
-  const headers = init?.body ? { "Content-Type": "application/json", ...(init.headers as Record<string, string> | undefined) } : init?.headers;
+  const isFormData = init?.body instanceof FormData;
+  const headers = init?.body && !isFormData
+    ? { "Content-Type": "application/json", ...(init.headers as Record<string, string> | undefined) }
+    : init?.headers;
   const response = await fetch(url, {
     credentials: "include",
     headers,
@@ -53,6 +63,10 @@ export async function fetchEvaluationState(): Promise<EvaluationSystemStateRespo
   return fetchJson<EvaluationSystemStateResponse>("/api/admin/evaluation-state");
 }
 
+export async function fetchAdminReadiness(): Promise<AdminReadinessResponse> {
+  return fetchJson<AdminReadinessResponse>("/api/admin/readiness");
+}
+
 export async function startEvaluationCycle(name: string): Promise<EvaluationSystemStateResponse> {
   return fetchJson<EvaluationSystemStateResponse>("/api/admin/evaluation-state/start", {
     method: "POST",
@@ -86,6 +100,28 @@ export async function deleteWhitelistEmail(email: string): Promise<{ ok: boolean
 
 export async function fetchAdminOrgTree(): Promise<AdminOrgTreeResponse> {
   return fetchJson<AdminOrgTreeResponse>("/api/admin/org/tree");
+}
+
+export async function importOrganizationCsv(file: File): Promise<OrganizationImportResponse> {
+  const body = new FormData();
+  body.append("file", file);
+  return fetchJson<OrganizationImportResponse>("/api/admin/org/import-csv", {
+    method: "POST",
+    body
+  });
+}
+
+export async function fetchPeerTeams(): Promise<PeerTeamsResponse> {
+  return fetchJson<PeerTeamsResponse>("/api/admin/peer-teams");
+}
+
+export async function importPeerTeamsCsv(file: File): Promise<PeerTeamsResponse> {
+  const body = new FormData();
+  body.append("file", file);
+  return fetchJson<PeerTeamsResponse>("/api/admin/peer-teams/import-csv", {
+    method: "POST",
+    body
+  });
 }
 
 export async function searchAdminUsers(query: string): Promise<AdminUserSearchResponse> {
@@ -135,11 +171,16 @@ export async function createEvaluationQuestion(input: {
   title: string;
   description: string;
   weight: number | null;
+  organization_node_id?: number | null;
 }): Promise<unknown> {
   return fetchJson<unknown>("/api/admin/questions", {
     method: "POST",
     body: JSON.stringify(input)
   });
+}
+
+export async function fetchManagerDetailQuestionTeams(): Promise<ManagerDetailQuestionTeamsResponse> {
+  return fetchJson<ManagerDetailQuestionTeamsResponse>("/api/admin/questions/manager-detail/teams");
 }
 
 export async function deleteEvaluationQuestion(questionId: number): Promise<{ ok: boolean }> {
@@ -163,6 +204,10 @@ export async function fetchSelfReview(): Promise<SelfReviewResponse> {
   return fetchJson<SelfReviewResponse>("/api/evaluations/self");
 }
 
+export async function fetchEvaluationProgress(): Promise<EvaluationProgressResponse> {
+  return fetchJson<EvaluationProgressResponse>("/api/evaluations/progress");
+}
+
 export async function saveSelfReviewAnswer(questionId: number, answerText: string): Promise<{ ok: boolean }> {
   return fetchJson<{ ok: boolean }>(`/api/evaluations/self/answers/${questionId}`, {
     method: "PUT",
@@ -183,6 +228,24 @@ export async function savePeerReviewScores(
   scores: Array<{ target_user_id: number; question_id: number; score: number }>,
 ): Promise<{ ok: boolean }> {
   return fetchJson<{ ok: boolean }>(`/api/evaluations/peer/${teamNodeId}/scores`, {
+    method: "PUT",
+    body: JSON.stringify({ scores })
+  });
+}
+
+export async function fetchManagerDetailReviewContexts(): Promise<ManagerDetailContextsResponse> {
+  return fetchJson<ManagerDetailContextsResponse>("/api/evaluations/manager-detail-contexts");
+}
+
+export async function fetchManagerDetailReview(teamNodeId: number): Promise<ManagerDetailReviewResponse> {
+  return fetchJson<ManagerDetailReviewResponse>(`/api/evaluations/manager-detail/${teamNodeId}`);
+}
+
+export async function saveManagerDetailReviewScores(
+  teamNodeId: number,
+  scores: Array<{ target_user_id: number; question_id: number; score: number }>,
+): Promise<{ ok: boolean }> {
+  return fetchJson<{ ok: boolean }>(`/api/evaluations/manager-detail/${teamNodeId}/scores`, {
     method: "PUT",
     body: JSON.stringify({ scores })
   });

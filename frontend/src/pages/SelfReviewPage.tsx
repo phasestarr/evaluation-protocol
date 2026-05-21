@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { saveSelfReviewAnswer, fetchSelfReview } from "../api";
+import { EvaluationQuestionTable } from "../components/EvaluationQuestionTable";
 import { MarkdownBlock } from "../components/MarkdownBlock";
+import { StatusMessage } from "../components/StatusMessage";
 import type { EvaluationQuestion, SelfReviewResponse } from "../types";
 
 const ANSWER_LIMIT = 1000;
@@ -45,8 +47,9 @@ export function SelfReviewPage() {
         <p className="eyebrow">Self Review</p>
         <h1>자기평가</h1>
         <MarkdownBlock content={data?.guide_content || "문항 설명이 등록되지 않았습니다. 관리자에게 문의하세요."} />
+        <EvaluationQuestionTable questions={questions} weighted={false} framed />
       </div>
-      {message && <div className="admin-message">{message}</div>}
+      <StatusMessage message={message} />
       <div className="evaluation-stack">
         {questions.map((question) => {
           const value = drafts[question.id] ?? "";
@@ -73,11 +76,6 @@ export function SelfReviewPage() {
           );
         })}
         {data && questions.length === 0 && <p className="empty-copy">등록된 자기평가 문항이 없습니다.</p>}
-      </div>
-      <div className="submit-row">
-        <button className="secondary-inline-button" type="button" onClick={() => setMessage("제출 확정은 다음 단계에서 연결됩니다.")}>
-          제출
-        </button>
       </div>
     </section>
   );

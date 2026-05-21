@@ -26,6 +26,7 @@ class EvaluationQuestionCreateIn(BaseModel):
     title: str
     description: str | None = None
     weight: int | None = None
+    organization_node_id: int | None = None
 
 
 class EvaluationGuideIn(BaseModel):

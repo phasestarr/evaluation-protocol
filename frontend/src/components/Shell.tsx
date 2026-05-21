@@ -6,7 +6,6 @@ import type { CurrentUser } from "../types";
 type NavItem = {
   to: string;
   label: string;
-  requiresLeader?: boolean;
   requiresAdmin?: boolean;
 };
 
@@ -14,7 +13,7 @@ const navItems: NavItem[] = [
   { to: "/", label: "홈" },
   { to: "/self-review", label: "자기평가" },
   { to: "/peer-review", label: "동료평가" },
-  { to: "/manager-detail-review", label: "팀원평가", requiresLeader: true },
+  { to: "/manager-detail-review", label: "팀원평가" },
   { to: "/admin", label: "관리자", requiresAdmin: true }
 ];
 
@@ -30,7 +29,6 @@ export function Shell({ user, onLogout, children }: { user: CurrentUser | null; 
         </Link>
         <nav className="topbar-nav">
           {navItems.map((item) => {
-            if (item.requiresLeader && !user?.has_leader_membership) return null;
             if (item.requiresAdmin && user?.system_role !== "admin") return null;
             return (
               <Link key={item.to} to={item.to}>

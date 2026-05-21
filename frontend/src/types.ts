@@ -34,7 +34,10 @@ export type Action = {
   description: string;
   icon: IconComponent;
   tone?: "default" | "admin";
+  completion?: CompletionStatus;
 };
+
+export type CompletionStatus = "complete" | "incomplete";
 
 export interface WhitelistEntry {
   id: number;
@@ -64,6 +67,32 @@ export interface EvaluationSystemStateResponse {
   current_cycle: EvaluationCycleSummary | null;
 }
 
+export interface ReadinessItem {
+  complete: boolean;
+  label: string;
+  detail: string;
+}
+
+export interface ManagerDetailReadinessItem extends ReadinessItem {
+  teams: Array<{
+    id: number;
+    name: string;
+    complete: boolean;
+    question_count: number;
+  }>;
+}
+
+export interface AdminReadinessResponse {
+  ready: boolean;
+  items: {
+    organization: ReadinessItem;
+    peer_teams: ReadinessItem;
+    self_questions: ReadinessItem;
+    peer_questions: ReadinessItem;
+    manager_detail_questions: ManagerDetailReadinessItem;
+  };
+}
+
 export interface OrganizationMembership {
   id: number;
   user_id: number;
@@ -91,12 +120,49 @@ export interface AdminUserSearchResponse {
 export interface AdminOrgTreeResponse {
   nodes: AdminOrganizationNode[];
   users: AdminUser[];
+  imported_people: ImportedPersonRow[];
   whitelist: WhitelistEntry[];
+}
+
+export interface ImportedPersonRow {
+  line_number: number;
+  attributes: "LEADER" | "MEMBER";
+  name: string;
+  title: string;
+  office_phone: string;
+  mobile: string;
+  email: string;
+  note: string;
+}
+
+export interface OrganizationImportResponse {
+  people: ImportedPersonRow[];
+  tree: AdminOrgTreeResponse;
+}
+
+export interface PeerTeamMember {
+  id: number;
+  user_id: number;
+  name: string;
+  email: string;
+  job_title: string;
+}
+
+export interface PeerTeam {
+  id: number;
+  name: string;
+  count: number;
+  members: PeerTeamMember[];
+}
+
+export interface PeerTeamsResponse {
+  teams: PeerTeam[];
 }
 
 export interface EvaluationQuestion {
   id: number;
   evaluation_type: EvaluationType;
+  organization_node_id: number | null;
   title: string;
   description: string | null;
   weight: number | null;
@@ -109,6 +175,18 @@ export interface AdminQuestionsResponse {
   questions: EvaluationQuestion[];
 }
 
+export interface ManagerDetailQuestionTeam {
+  id: number;
+  name: string;
+  parent_id: number | null;
+  path: string;
+  question_count: number;
+}
+
+export interface ManagerDetailQuestionTeamsResponse {
+  teams: ManagerDetailQuestionTeam[];
+}
+
 export interface SelfReviewResponse {
   guide_content: string;
   questions: EvaluationQuestion[];
@@ -119,6 +197,7 @@ export interface PeerReviewContext {
   team_node_id: number;
   title: string;
   role_label: string;
+  complete: boolean;
 }
 
 export interface PeerReviewContextsResponse {
@@ -143,4 +222,23 @@ export interface PeerReviewResponse {
   questions: EvaluationQuestion[];
   targets: PeerReviewTarget[];
   scores: Record<string, number>;
+}
+
+export type ManagerDetailContextsResponse = PeerReviewContextsResponse;
+export type ManagerDetailReviewResponse = PeerReviewResponse;
+
+export interface EvaluationCompletionSummary {
+  complete: boolean;
+  completed_count: number;
+  total_count: number;
+}
+
+export interface EvaluationContextCompletionSummary extends EvaluationCompletionSummary {
+  contexts: PeerReviewContext[];
+}
+
+export interface EvaluationProgressResponse {
+  self: EvaluationCompletionSummary;
+  peer: EvaluationContextCompletionSummary;
+  manager_detail: EvaluationContextCompletionSummary;
 }

@@ -44,6 +44,17 @@ def format_user_affiliation(user: User) -> str:
         key=membership_affiliation_sort_key,
     )
     lines = [format_membership_affiliation(membership, user) for membership in memberships]
+    peer_team_names = sorted(
+        {
+            membership.team.name
+            for membership in user.peer_team_members
+            if membership.team is not None
+        }
+    )
+    if peer_team_names:
+        if lines:
+            lines.append("")
+        lines.append(f"Teams : [{', '.join(peer_team_names)}]")
     if not lines:
         return "소속 부서 미지정"
     return "\n".join(lines)
@@ -68,7 +79,7 @@ def format_membership_affiliation(membership: OrganizationMembership, user: User
         role_text = f"{role_text} {display_name}"
     else:
         role_text = f"팀원 {display_name}"
-    return ">".join([*segments, role_text])
+    return " > ".join([*segments, role_text])
 
 
 def organization_path_segments(node: OrganizationNode) -> list[str]:

@@ -88,7 +88,7 @@ async def microsoft_callback(
         transaction.status = OAuthStatus.denied
         transaction.failure_reason = f"{email} is not whitelisted"
         db.commit()
-        return redirect_with_error(f"{email} 계정은 이 시스템 접근 화이트리스트에 없습니다.")
+        return redirect_with_error(f"접근 권한이 없는 계정입니다: {email}")
 
     user = get_or_create_user_from_microsoft_profile(db, email, profile["display_name"])
     raw_session_key, session = issue_user_session(db, user, settings.session_ttl_minutes)
