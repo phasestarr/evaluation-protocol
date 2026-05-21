@@ -8,19 +8,6 @@ class WhitelistCreateIn(BaseModel):
     system_role: str = "user"
 
 
-class OrganizationNodeCreateIn(BaseModel):
-    name: str
-    node_type: str
-    parent_id: int | None = None
-
-
-class OrganizationMembershipCreateIn(BaseModel):
-    email: str | None = None
-    user_id: int | None = None
-    organization_node_id: int
-    membership_role: str = "member"
-
-
 class EvaluationQuestionCreateIn(BaseModel):
     evaluation_type: str
     title: str

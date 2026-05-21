@@ -2,7 +2,7 @@ from datetime import UTC, date, datetime
 from collections import defaultdict
 
 from fastapi import HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -119,9 +119,36 @@ def stop_evaluation_cycle(db: Session) -> None:
     if cycle is not None:
         cycle.status = CYCLE_CLOSED
         cycle.ended_at = datetime.now(UTC)
+    clear_live_setup_after_cycle(db)
     state.status = SYSTEM_IDLE
     state.current_cycle_id = None
     db.commit()
+
+
+def clear_live_setup_after_cycle(db: Session) -> None:
+    db.execute(delete(PeerReviewTeam))
+    db.execute(delete(OrganizationImportUser))
+    db.execute(delete(OrganizationMembership))
+    db.execute(delete(EvaluationGuide))
+    db.execute(delete(EvaluationQuestion))
+    non_root_nodes = db.scalars(
+        select(OrganizationNode).where(
+            ~(
+                (OrganizationNode.node_type == OrganizationNodeType.company)
+                & (OrganizationNode.parent_id.is_(None))
+            )
+        )
+    ).all()
+    for node in sorted(non_root_nodes, key=lambda item: item.id, reverse=True):
+        db.delete(node)
+    root = db.scalar(
+        select(OrganizationNode).where(
+            OrganizationNode.node_type == OrganizationNodeType.company,
+            OrganizationNode.parent_id.is_(None),
+        )
+    )
+    if root is not None:
+        root.name = "Company"
 
 
 def snapshot_participants(db: Session, cycle: EvaluationCycle) -> dict[int, EvaluationParticipant]:
@@ -442,6 +469,9 @@ def create_question(
     title = title_value.strip()
     if not title:
         raise HTTPException(status_code=400, detail="Question title is required")
+    normalized_description = normalize_optional_text(description)
+    if normalized_description is None:
+        raise HTTPException(status_code=400, detail="Question description is required")
 
     weight = None
     if evaluation_type in WEIGHTED_EVALUATION_TYPES:
@@ -471,7 +501,7 @@ def create_question(
         evaluation_type=evaluation_type,
         organization_node_id=organization_node_id,
         title=title,
-        description=normalize_optional_text(description),
+        description=normalized_description,
         weight=weight,
         sort_order=next_sort_order,
         is_active=True,
@@ -680,31 +710,26 @@ def admin_readiness(db: Session) -> dict:
     ) or 0
     peer_team_count = db.scalar(select(func.count()).select_from(PeerReviewTeam)) or 0
     peer_team_member_count = db.scalar(select(func.count()).select_from(PeerReviewTeamMember)) or 0
-    self_question_count = active_question_count(db, SELF)
-    peer_question_count = active_question_count(db, PEER)
+    self_question_stats = active_question_stats(db, SELF)
+    peer_question_stats = active_question_stats(db, PEER)
+    manager_guide_complete = evaluation_guide_exists(db, MANAGER_DETAIL)
 
     teams = db.scalars(
         select(OrganizationNode)
         .where(OrganizationNode.node_type == OrganizationNodeType.team)
         .order_by(OrganizationNode.id)
     ).all()
-    manager_question_counts = {
-        team_id: count
-        for team_id, count in db.execute(
-            select(EvaluationQuestion.organization_node_id, func.count(EvaluationQuestion.id))
-            .where(
-                EvaluationQuestion.evaluation_type == MANAGER_DETAIL,
-                EvaluationQuestion.is_active.is_(True),
-            )
-            .group_by(EvaluationQuestion.organization_node_id)
-        ).all()
+    manager_question_stats = {
+        team.id: active_question_stats(db, MANAGER_DETAIL, team.id)
+        for team in teams
     }
     manager_team_items = [
         {
             "id": team.id,
             "name": team.name,
-            "complete": manager_question_counts.get(team.id, 0) > 0,
-            "question_count": manager_question_counts.get(team.id, 0),
+            "complete": manager_question_stats[team.id]["complete"],
+            "question_count": manager_question_stats[team.id]["total_count"],
+            "complete_question_count": manager_question_stats[team.id]["complete_count"],
         }
         for team in teams
     ]
@@ -721,19 +746,22 @@ def admin_readiness(db: Session) -> dict:
             "detail": f"팀 {peer_team_count}개, 멤버 {peer_team_member_count}명",
         },
         "self_questions": {
-            "complete": self_question_count > 0,
+            "complete": self_question_stats["complete"],
             "label": "자기평가 문항 관리",
-            "detail": f"문항 {self_question_count}개",
+            "detail": question_readiness_detail(self_question_stats),
         },
         "peer_questions": {
-            "complete": peer_question_count > 0,
+            "complete": peer_question_stats["complete"],
             "label": "동료평가 문항 관리",
-            "detail": f"문항 {peer_question_count}개",
+            "detail": question_readiness_detail(peer_question_stats),
         },
         "manager_detail_questions": {
             "complete": bool(manager_team_items) and all(item["complete"] for item in manager_team_items),
             "label": "팀원평가 문항 관리",
-            "detail": f"완료 {sum(1 for item in manager_team_items if item['complete'])}/{len(manager_team_items)}팀",
+            "detail": (
+                f"{'안내문 완료' if manager_guide_complete else '안내문 미완료'}, "
+                f"완료 {sum(1 for item in manager_team_items if item['complete'])}/{len(manager_team_items)}팀"
+            ),
             "teams": manager_team_items,
         },
     }
@@ -743,11 +771,28 @@ def admin_readiness(db: Session) -> dict:
     }
 
 
-def active_question_count(db: Session, evaluation_type: str, organization_node_id: int | None = None) -> int:
-    query = select(func.count()).select_from(EvaluationQuestion).where(
+def active_question_stats(db: Session, evaluation_type: str, organization_node_id: int | None = None) -> dict:
+    query = select(EvaluationQuestion).where(
         EvaluationQuestion.evaluation_type == evaluation_type,
         EvaluationQuestion.is_active.is_(True),
     )
     if evaluation_type == MANAGER_DETAIL:
         query = query.where(EvaluationQuestion.organization_node_id == organization_node_id)
-    return db.scalar(query) or 0
+    questions = db.scalars(query).all()
+    total_count = len(questions)
+    guide_complete = evaluation_guide_exists(db, evaluation_type)
+    return {
+        "complete": guide_complete and total_count > 0,
+        "complete_count": total_count if guide_complete and total_count > 0 else 0,
+        "guide_complete": guide_complete,
+        "total_count": total_count,
+    }
+
+
+def evaluation_guide_exists(db: Session, evaluation_type: str) -> bool:
+    return bool(evaluation_guide_content(db, evaluation_type).strip())
+
+
+def question_readiness_detail(stats: dict) -> str:
+    guide_label = "안내문 완료" if stats["guide_complete"] else "안내문 미완료"
+    return f"{guide_label}, 문항 {stats['total_count']}개"

@@ -6,6 +6,7 @@ class CurrentUserOut(BaseModel):
     job_title: str | None = None
     system_role: str
     has_leader_membership: bool
+    has_manager_detail_access: bool
     organization_affiliation: str
 
 

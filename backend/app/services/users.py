@@ -20,6 +20,7 @@ def serialize_user(user: User) -> CurrentUserOut:
         job_title=user.job_title,
         system_role=user.system_role.value,
         has_leader_membership=has_leader_membership(user),
+        has_manager_detail_access=has_manager_detail_access(user),
         organization_affiliation=format_user_affiliation(user),
     )
 
@@ -36,6 +37,18 @@ def serialize_admin_user(user: User) -> dict:
 
 def has_leader_membership(user: User) -> bool:
     return any(membership.membership_role == OrganizationMembershipRole.leader for membership in user.memberships)
+
+
+def has_manager_detail_access(user: User) -> bool:
+    for membership in user.memberships:
+        node = membership.organization_node
+        if node is None:
+            continue
+        if node.node_type == OrganizationNodeType.head:
+            return True
+        if node.node_type == OrganizationNodeType.team and membership.membership_role == OrganizationMembershipRole.leader:
+            return True
+    return False
 
 
 def format_user_affiliation(user: User) -> str:

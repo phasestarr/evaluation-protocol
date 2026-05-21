@@ -1,12 +1,10 @@
-from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.v1.schemas import (
     EvaluationGuideIn,
     EvaluationQuestionCreateIn,
-    OrganizationMembershipCreateIn,
-    OrganizationNodeCreateIn,
     StartCycleIn,
     WhitelistCreateIn,
 )
@@ -32,12 +30,7 @@ from app.services.evaluation import (
     stop_evaluation_cycle,
 )
 from app.services.organization import (
-    create_membership,
-    create_org_node,
-    delete_membership,
-    delete_org_node,
     organization_tree,
-    serialize_membership,
     serialize_org_node,
 )
 from app.services.org_import import import_organization_csv, list_imported_users
@@ -148,30 +141,6 @@ def admin_delete_whitelist(email: str, request: Request, db: Session = Depends(g
     return {"ok": True}
 
 
-@router.get("/api/admin/users/search")
-def admin_search_users(request: Request, q: str = Query(default=""), db: Session = Depends(get_db)) -> dict[str, list[dict]]:
-    require_admin(request, db)
-    query = q.strip()
-    if len(query) < 1:
-        return {"users": []}
-
-    like = f"%{query}%"
-    users = db.scalars(
-        select(User)
-        .where(
-            (User.email != settings.initialization_email_normalized)
-            & (
-                (User.email.ilike(like))
-                | (User.display_name.ilike(like))
-                | (User.job_title.ilike(like))
-            )
-        )
-        .order_by(User.display_name, User.email)
-        .limit(20)
-    ).all()
-    return {"users": [serialize_admin_user(user) for user in users]}
-
-
 @router.get("/api/admin/org/tree")
 def admin_org_tree(request: Request, db: Session = Depends(get_db)) -> dict:
     require_admin(request, db)
@@ -218,44 +187,6 @@ def admin_import_peer_teams_csv(request: Request, file: UploadFile = File(...), 
     if not (file.filename or "").lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="CSV file is required")
     return import_peer_teams_csv(db, file.file.read())
-
-
-@router.post("/api/admin/org/nodes")
-def admin_create_org_node(payload: OrganizationNodeCreateIn, request: Request, db: Session = Depends(get_db)) -> dict:
-    require_admin_idle(request, db)
-    node = create_org_node(db, payload.name, payload.node_type, payload.parent_id)
-    return serialize_org_node(node, [])
-
-
-@router.delete("/api/admin/org/nodes/{node_id}")
-def admin_delete_org_node(node_id: int, request: Request, db: Session = Depends(get_db)) -> dict[str, bool]:
-    require_admin_idle(request, db)
-    delete_org_node(db, node_id)
-    return {"ok": True}
-
-
-@router.post("/api/admin/org/memberships")
-def admin_create_org_membership(
-    payload: OrganizationMembershipCreateIn,
-    request: Request,
-    db: Session = Depends(get_db),
-) -> dict:
-    require_admin_idle(request, db)
-    membership = create_membership(
-        db,
-        payload.organization_node_id,
-        payload.membership_role,
-        payload.user_id,
-        payload.email,
-    )
-    return serialize_membership(membership)
-
-
-@router.delete("/api/admin/org/memberships/{membership_id}")
-def admin_delete_org_membership(membership_id: int, request: Request, db: Session = Depends(get_db)) -> dict[str, bool]:
-    require_admin_idle(request, db)
-    delete_membership(db, membership_id)
-    return {"ok": True}
 
 
 @router.get("/api/admin/questions")
@@ -321,8 +252,12 @@ def serialize_manager_detail_question_teams(db: Session) -> list[dict]:
     nodes, _ = organization_tree(db)
     node_by_id = {node.id: node for node in nodes}
     question_counts: dict[int, int] = {}
+    guide_complete = bool(evaluation_guide_content(db, MANAGER_DETAIL).strip())
     questions = db.scalars(
-        select(EvaluationQuestion).where(EvaluationQuestion.evaluation_type == MANAGER_DETAIL)
+        select(EvaluationQuestion).where(
+            EvaluationQuestion.evaluation_type == MANAGER_DETAIL,
+            EvaluationQuestion.is_active.is_(True),
+        )
     ).all()
     for question in questions:
         if question.organization_node_id is not None:
@@ -336,9 +271,19 @@ def serialize_manager_detail_question_teams(db: Session) -> list[dict]:
             "parent_id": team.parent_id,
             "path": organization_node_path(team, node_by_id),
             "question_count": question_counts.get(team.id, 0),
+            "complete": guide_complete and manager_detail_team_questions_complete(team.id, questions),
         }
         for team in teams
     ]
+
+
+def manager_detail_team_questions_complete(team_id: int, questions: list[EvaluationQuestion]) -> bool:
+    team_questions = [
+        question
+        for question in questions
+        if question.organization_node_id == team_id and question.is_active
+    ]
+    return bool(team_questions)
 
 
 def organization_node_path(node: OrganizationNode, node_by_id: dict[int, OrganizationNode]) -> str:

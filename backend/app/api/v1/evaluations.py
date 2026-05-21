@@ -1,9 +1,11 @@
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.v1.schemas import ReviewScoresIn, SelfReviewAnswerIn
-from app.constants import MANAGER_DETAIL, PEER, SELF
+from app.constants import ASSIGNMENT_PENDING, ASSIGNMENT_SUBMITTED, MANAGER_DETAIL, PEER, SELF
 from app.db.postgres.models import (
     EvaluationCycle,
     EvaluationCycleQuestion,
@@ -71,6 +73,7 @@ def save_self_review_answer(
         raise HTTPException(status_code=404, detail="Self review question not found")
 
     save_self_answer(db, assignment, question, answer_text)
+    update_self_assignment_status(db, cycle, assignment)
     return {"ok": True}
 
 
@@ -81,7 +84,7 @@ def evaluation_progress(request: Request, db: Session = Depends(get_db)) -> dict
     participant = require_cycle_participant(db, cycle, user)
     self_status = self_review_completion(db, cycle, participant)
     peer_contexts = review_contexts(db, cycle, participant, PEER)
-    manager_contexts = review_contexts(db, cycle, participant, MANAGER_DETAIL)
+    manager_contexts = manager_detail_target_contexts(db, cycle, participant)
     return {
         "self": self_status,
         "peer": summarize_context_completion(peer_contexts),
@@ -124,15 +127,20 @@ def manager_detail_contexts(request: Request, db: Session = Depends(get_db)) -> 
     user = require_user(request, db)
     cycle = require_running_cycle(db)
     participant = require_cycle_participant(db, cycle, user)
-    return {"contexts": review_contexts(db, cycle, participant, MANAGER_DETAIL)}
+    return {"contexts": manager_detail_target_contexts(db, cycle, participant)}
 
 
-@router.get("/api/evaluations/manager-detail/{team_node_id}")
-def manager_detail_review(team_node_id: int, request: Request, db: Session = Depends(get_db)) -> dict:
+@router.get("/api/evaluations/manager-detail/{team_node_id}/targets/{target_user_id}")
+def manager_detail_target_review(
+    team_node_id: int,
+    target_user_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> dict:
     user = require_user(request, db)
     cycle = require_running_cycle(db)
     participant = require_cycle_participant(db, cycle, user)
-    return review_payload(db, cycle, participant, MANAGER_DETAIL, team_node_id)
+    return review_payload(db, cycle, participant, MANAGER_DETAIL, team_node_id, target_user_id)
 
 
 @router.put("/api/evaluations/manager-detail/{team_node_id}/scores")
@@ -190,12 +198,42 @@ def review_contexts(
     return result
 
 
+def manager_detail_target_contexts(
+    db: Session,
+    cycle: EvaluationCycle,
+    participant: EvaluationParticipant,
+) -> list[dict]:
+    assignments = db.scalars(
+        select(ReviewAssignment)
+        .where(
+            ReviewAssignment.cycle_id == cycle.id,
+            ReviewAssignment.review_type == MANAGER_DETAIL,
+            ReviewAssignment.reviewer_participant_id == participant.id,
+            ReviewAssignment.context_team_snapshot_id.is_not(None),
+            ReviewAssignment.target_participant_id.is_not(None),
+        )
+        .order_by(ReviewAssignment.sort_order, ReviewAssignment.id)
+    ).all()
+    return [
+        {
+            "team_node_id": assignment.context_team_snapshot_id,
+            "target_user_id": assignment.target_participant_id,
+            "title": participant_name(assignment.target),
+            "role_label": review_context_title(assignment, MANAGER_DETAIL),
+            "complete": weighted_assignment_completion(db, cycle, assignment),
+        }
+        for assignment in assignments
+        if assignment.context_team_snapshot_id is not None and assignment.target_participant_id is not None
+    ]
+
+
 def review_payload(
     db: Session,
     cycle: EvaluationCycle,
     participant: EvaluationParticipant,
     review_type: str,
     context_id: int,
+    target_user_id: int | None = None,
 ) -> dict:
     assignments = review_assignments_for_context(db, cycle, participant, review_type, context_id)
     if not assignments:
@@ -207,6 +245,11 @@ def review_payload(
         for assignment in assignments
         if assignment.target_participant_id is not None and assignment.target is not None
     }
+    if target_user_id is not None:
+        assignment = assignment_by_target_id.get(target_user_id)
+        if assignment is None:
+            raise HTTPException(status_code=404, detail="Review target not found")
+        assignment_by_target_id = {target_user_id: assignment}
     assignment_ids = [assignment.id for assignment in assignment_by_target_id.values()]
     question_ids = [question.id for question in questions]
     scores = []
@@ -256,6 +299,7 @@ def save_weighted_review_scores(
     }
     questions = cycle_questions(db, cycle, review_type, context_id if review_type == MANAGER_DETAIL else None)
     question_ids = {question.id for question in questions}
+    pending_scores: dict[tuple[int, int], int] = {}
     for score in payload.scores:
         if not 0 <= score.score <= 100:
             raise HTTPException(status_code=400, detail="Score must be between 0 and 100")
@@ -264,8 +308,122 @@ def save_weighted_review_scores(
             raise HTTPException(status_code=404, detail="Review target not found")
         if score.question_id not in question_ids:
             raise HTTPException(status_code=404, detail="Review question not found")
-        save_review_score(db, assignment, score.question_id, score.score)
+        pending_scores[(assignment.id, score.question_id)] = score.score
+
+    if review_type == PEER:
+        validate_average_total_score(db, assignments, questions, pending_scores)
+    for (assignment_id, question_id), score_value in pending_scores.items():
+        save_review_score(db, assignment_by_id(assignments, assignment_id), question_id, score_value)
+    db.flush()
+    for assignment in assignments:
+        update_weighted_assignment_status(db, cycle, assignment, questions)
     db.commit()
+
+
+def assignment_by_id(assignments: list[ReviewAssignment], assignment_id: int) -> ReviewAssignment:
+    for assignment in assignments:
+        if assignment.id == assignment_id:
+            return assignment
+    raise HTTPException(status_code=404, detail="Review assignment not found")
+
+
+def validate_average_total_score(
+    db: Session,
+    assignments: list[ReviewAssignment],
+    questions: list[EvaluationCycleQuestion],
+    pending_scores: dict[tuple[int, int], int],
+) -> None:
+    target_assignments = [assignment for assignment in assignments if assignment.target_participant_id is not None]
+    if not target_assignments or not questions:
+        return
+    assignment_ids = [assignment.id for assignment in target_assignments]
+    question_ids = [question.id for question in questions]
+    existing_scores = db.scalars(
+        select(ReviewScore).where(
+            ReviewScore.assignment_id.in_(assignment_ids),
+            ReviewScore.cycle_question_id.in_(question_ids),
+        )
+    ).all()
+    score_by_cell = {
+        (score.assignment_id, score.cycle_question_id): score.score
+        for score in existing_scores
+    }
+    score_by_cell.update(pending_scores)
+    total_weight = sum(question.weight_snapshot or 0 for question in questions)
+    if total_weight <= 0:
+        return
+    question_by_id = {question.id: question for question in questions}
+    totals = []
+    for assignment in target_assignments:
+        total = 0.0
+        for question_id in question_ids:
+            question = question_by_id[question_id]
+            score = score_by_cell.get((assignment.id, question_id), 0)
+            total += score * ((question.weight_snapshot or 0) / total_weight)
+        totals.append(total)
+    average_total = sum(totals) / len(totals)
+    if average_total > 50:
+        raise HTTPException(status_code=400, detail=f"전체 총점 평균은 50점 이하여야 합니다. 현재 평균: {average_total:.2f}점")
+
+
+def update_self_assignment_status(db: Session, cycle: EvaluationCycle, assignment: ReviewAssignment) -> None:
+    questions = cycle_questions(db, cycle, SELF)
+    question_ids = [question.id for question in questions]
+    if not question_ids:
+        set_assignment_submission_state(assignment, False)
+        db.commit()
+        return
+
+    answers = db.scalars(
+        select(SelfReviewAnswer).where(
+            SelfReviewAnswer.assignment_id == assignment.id,
+            SelfReviewAnswer.cycle_question_id.in_(question_ids),
+        )
+    ).all()
+    answered_question_ids = {
+        answer.cycle_question_id
+        for answer in answers
+        if answer.answer_text.strip()
+    }
+    set_assignment_submission_state(assignment, len(answered_question_ids) == len(question_ids))
+    db.commit()
+
+
+def update_weighted_assignment_status(
+    db: Session,
+    cycle: EvaluationCycle,
+    assignment: ReviewAssignment,
+    questions: list[EvaluationCycleQuestion],
+) -> None:
+    if assignment.target_participant_id is None:
+        set_assignment_submission_state(assignment, False)
+        return
+
+    question_ids = [question.id for question in questions]
+    if not question_ids:
+        set_assignment_submission_state(assignment, False)
+        return
+
+    completed_count = db.scalar(
+        select(func.count())
+        .select_from(ReviewScore)
+        .where(
+            ReviewScore.assignment_id == assignment.id,
+            ReviewScore.cycle_question_id.in_(question_ids),
+        )
+    ) or 0
+    set_assignment_submission_state(assignment, completed_count == len(question_ids))
+
+
+def set_assignment_submission_state(assignment: ReviewAssignment, is_complete: bool) -> None:
+    if is_complete:
+        assignment.status = ASSIGNMENT_SUBMITTED
+        if assignment.submitted_at is None:
+            assignment.submitted_at = datetime.now(UTC)
+        return
+
+    assignment.status = ASSIGNMENT_PENDING
+    assignment.submitted_at = None
 
 
 def self_review_completion(db: Session, cycle: EvaluationCycle, participant: EvaluationParticipant) -> dict:
@@ -330,11 +488,32 @@ def weighted_review_completion(
     }
 
 
+def weighted_assignment_completion(
+    db: Session,
+    cycle: EvaluationCycle,
+    assignment: ReviewAssignment,
+) -> bool:
+    if assignment.target_participant_id is None or assignment.context_team_snapshot_id is None:
+        return False
+    questions = cycle_questions(db, cycle, assignment.review_type, assignment.context_team_snapshot_id)
+    if not questions:
+        return False
+    completed_count = db.scalar(
+        select(func.count())
+        .select_from(ReviewScore)
+        .where(
+            ReviewScore.assignment_id == assignment.id,
+            ReviewScore.cycle_question_id.in_([question.id for question in questions]),
+        )
+    ) or 0
+    return completed_count == len(questions)
+
+
 def summarize_context_completion(contexts: list[dict]) -> dict:
     total_count = len(contexts)
     completed_count = sum(1 for context in contexts if context.get("complete"))
     return {
-        "complete": total_count > 0 and completed_count == total_count,
+        "complete": completed_count == total_count,
         "completed_count": completed_count,
         "total_count": total_count,
         "contexts": contexts,
@@ -389,6 +568,16 @@ def serialize_review_target(participant: EvaluationParticipant, role_label: str,
         "role_label": role_label,
         "affiliation": participant_affiliation(participant, db),
     }
+
+
+def participant_name(participant: EvaluationParticipant | None) -> str:
+    if participant is None:
+        return "평가 대상"
+    return " ".join(
+        value
+        for value in [participant.job_title_snapshot, participant.display_name_snapshot or participant.email_snapshot]
+        if value
+    )
 
 
 def target_role_label(participant: EvaluationParticipant | None) -> str:

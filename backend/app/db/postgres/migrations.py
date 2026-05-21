@@ -7,11 +7,28 @@ from sqlalchemy import inspect
 from app.config import get_settings
 from app.db.postgres.session import engine
 
-CURRENT_REVISION = "20260518_000005"
+CURRENT_REVISION = "20260518_000001"
 MANAGED_TABLES = {
+    "evaluation_cycle_guides",
+    "evaluation_cycle_questions",
+    "evaluation_cycles",
+    "evaluation_guides",
+    "evaluation_membership_snapshots",
+    "evaluation_org_node_snapshots",
+    "evaluation_participants",
+    "evaluation_peer_team_member_snapshots",
+    "evaluation_peer_team_snapshots",
+    "evaluation_questions",
+    "evaluation_system_state",
     "oauth_transactions",
+    "organization_import_users",
+    "peer_review_team_members",
+    "peer_review_teams",
     "organization_nodes",
     "organization_memberships",
+    "review_assignments",
+    "review_scores",
+    "self_review_answers",
     "user_sessions",
     "user_whitelist",
     "users",

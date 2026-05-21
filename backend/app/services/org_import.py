@@ -104,6 +104,7 @@ def parse_organization_csv(content: bytes) -> ParsedOrganizationImport:
     memberships: list[ParsedMembership] = []
     people: list[ParsedPerson] = []
     people_by_key: dict[tuple[str, str], ParsedPerson] = {}
+    people_by_name: dict[str, ParsedPerson] = {}
     people_by_email: dict[str, ParsedPerson] = {}
     assignment_references: list[tuple[int, tuple[str, str]]] = []
     seen_node_keys: set[tuple[str, ...]] = set()
@@ -160,9 +161,12 @@ def parse_organization_csv(content: bytes) -> ParsedOrganizationImport:
             if row_type == USER_ROW_TYPE:
                 if person_key in people_by_key:
                     raise csv_error(line_number, f"Duplicate {USER_ROW_TYPE}; use {ASSIGNMENT_ROW_TYPE} for additional memberships")
+                if person.name in people_by_name:
+                    raise csv_error(line_number, f"Duplicate name in {USER_ROW_TYPE} rows; use unique names such as OOO1 and OOO2")
                 if person.email in people_by_email:
                     raise csv_error(line_number, f"Duplicate email in {USER_ROW_TYPE} rows")
                 people_by_key[person_key] = person
+                people_by_name[person.name] = person
                 people_by_email[person.email] = person
                 people.append(person)
             else:
