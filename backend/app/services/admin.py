@@ -77,6 +77,16 @@ def delete_whitelist_user(db: Session, email_value: str) -> None:
     db.commit()
 
 
+def update_user_system_role(db: Session, user_id: int, system_role_value: str) -> dict:
+    user = db.get(User, user_id)
+    if user is None or is_initialization_email(user.email, settings.initialization_email_normalized):
+        raise HTTPException(status_code=404, detail="User not found")
+    user.system_role = parse_system_role(system_role_value)
+    db.commit()
+    db.refresh(user)
+    return serialize_admin_user(user)
+
+
 def admin_org_tree_payload(db: Session) -> dict:
     nodes, memberships = organization_tree(db)
     whitelist = list_whitelist_entries(db)

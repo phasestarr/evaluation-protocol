@@ -9,6 +9,10 @@ import type {
   ManagerDetailQuestionTeamsResponse,
   OrganizationImportResponse,
   PeerTeamsResponse,
+  ResultCycleUsersResponse,
+  ResultCyclesResponse,
+  ResultParticipantResponse,
+  SystemRole,
 } from "../types";
 
 export async function fetchAdminUsers(): Promise<AdminUsersResponse> {
@@ -56,6 +60,13 @@ export async function deleteWhitelistEmail(email: string): Promise<{ ok: boolean
 
 export async function fetchAdminOrgTree(): Promise<AdminOrgTreeResponse> {
   return fetchJson<AdminOrgTreeResponse>("/api/v1/admin/org/tree");
+}
+
+export async function updateOrgUserSystemRole(userId: number, systemRole: SystemRole): Promise<unknown> {
+  return fetchJson<unknown>(`/api/v1/admin/org/users/${userId}/system-role`, {
+    method: "PUT",
+    body: JSON.stringify({ system_role: systemRole }),
+  });
 }
 
 export async function importOrganizationCsv(file: File): Promise<OrganizationImportResponse> {
@@ -123,4 +134,16 @@ export async function saveEvaluationGuide(
     method: "PUT",
     body: JSON.stringify({ content }),
   });
+}
+
+export async function fetchResultCycles(): Promise<ResultCyclesResponse> {
+  return fetchJson<ResultCyclesResponse>("/api/v1/admin/results/cycles");
+}
+
+export async function fetchResultCycleUsers(cycleId: number): Promise<ResultCycleUsersResponse> {
+  return fetchJson<ResultCycleUsersResponse>(`/api/v1/admin/results/cycles/${cycleId}/users`);
+}
+
+export async function fetchResultParticipant(cycleId: number, participantId: number): Promise<ResultParticipantResponse> {
+  return fetchJson<ResultParticipantResponse>(`/api/v1/admin/results/cycles/${cycleId}/users/${participantId}`);
 }

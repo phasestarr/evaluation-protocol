@@ -1,6 +1,8 @@
+from app.db.postgres.models.auth import OAuthStatus, OAuthTransaction, SystemRole, User, UserSession, UserWhitelist
 from app.db.postgres.models.evaluation import (
     EvaluationCycle,
     EvaluationCycleGuide,
+    EvaluationImportUserSnapshot,
     EvaluationCycleQuestion,
     EvaluationGuide,
     EvaluationMembershipSnapshot,
@@ -10,8 +12,11 @@ from app.db.postgres.models.evaluation import (
     EvaluationParticipant,
     EvaluationQuestion,
     EvaluationSystemState,
-    OAuthStatus,
-    OAuthTransaction,
+    ReviewAssignment,
+    ReviewScore,
+    SelfReviewAnswer,
+)
+from app.db.postgres.models.organization import (
     OrganizationImportUser,
     OrganizationMembership,
     OrganizationMembershipRole,
@@ -19,18 +24,12 @@ from app.db.postgres.models.evaluation import (
     OrganizationNodeType,
     PeerReviewTeam,
     PeerReviewTeamMember,
-    ReviewAssignment,
-    ReviewScore,
-    SelfReviewAnswer,
-    SystemRole,
-    User,
-    UserSession,
-    UserWhitelist,
 )
 
 __all__ = [
     "EvaluationCycle",
     "EvaluationCycleGuide",
+    "EvaluationImportUserSnapshot",
     "EvaluationCycleQuestion",
     "EvaluationGuide",
     "EvaluationMembershipSnapshot",

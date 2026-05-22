@@ -1,6 +1,5 @@
 import { type Dispatch, type ReactNode, type SetStateAction, useEffect, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { BarChart3 } from "lucide-react";
 import { fetchAuthStatus, logout } from "../shared/api/auth";
 import { AppShell } from "../shared/ui/AppShell/AppShell";
 import { SplashScreen } from "../shared/ui/SplashScreen/SplashScreen";
@@ -18,6 +17,8 @@ import {
   AdminTeamMemberQuestionManagementPage,
   AdminTeamMemberQuestionTeamsPage,
 } from "../features/admin/questions";
+import { AdminResultDetailPage } from "../features/admin/results/AdminResultDetailPage";
+import { AdminResultUsersPage } from "../features/admin/results/AdminResultUsersPage";
 import { AdminResultsPage } from "../features/admin/results/AdminResultsPage";
 import { AdminUsersPage } from "../features/admin/users/AdminUsersPage";
 import { DashboardPage } from "../features/dashboard/DashboardPage";
@@ -35,12 +36,17 @@ type AuthState = AuthStatus & {
 
 export default function App() {
   const [auth, setAuth] = useState<AuthState>({ loading: true, authenticated: false, user: null });
+  const location = useLocation();
 
   useEffect(() => {
     fetchAuthStatus()
       .then((data) => setAuth({ loading: false, ...data }))
       .catch(() => setAuth({ loading: false, authenticated: false, user: null }));
   }, []);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [location.pathname, location.search]);
 
   if (auth.loading) {
     return <SplashScreen />;
@@ -78,7 +84,9 @@ export default function App() {
                 <Route path="/admin/questions/peer" element={<AdminPeerQuestionManagementPage user={auth.user} />} />
                 <Route path="/admin/questions/manager-detail" element={<AdminTeamMemberQuestionTeamsPage user={auth.user} />} />
                 <Route path="/admin/questions/manager-detail/:teamNodeId" element={<AdminTeamMemberQuestionManagementPage user={auth.user} />} />
-                <Route path="/admin/results" element={<AdminResultsPage icon={BarChart3} title="평가 결과 열람" />} />
+                <Route path="/admin/results" element={<AdminResultsPage user={auth.user} />} />
+                <Route path="/admin/results/:cycleId" element={<AdminResultUsersPage user={auth.user} />} />
+                <Route path="/admin/results/:cycleId/users/:participantId" element={<AdminResultDetailPage user={auth.user} />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </AppShell>

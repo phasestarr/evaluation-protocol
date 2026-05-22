@@ -1,6 +1,6 @@
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Trash2 } from "lucide-react";
+import { ClipboardList, FileText, ListChecks, Trash2 } from "lucide-react";
 import {
   createEvaluationQuestion,
   deleteEvaluationQuestion,
@@ -12,6 +12,8 @@ import {
 } from "../../../shared/api/admin";
 import { CompletionBadge } from "../../../shared/ui/ActionCard/ActionCard";
 import { MarkdownBlock } from "../../../shared/ui/MarkdownBlock/MarkdownBlock";
+import { MultilineText } from "../../../shared/ui/MultilineText/MultilineText";
+import { PageHeader } from "../../../shared/ui/PageHeader/PageHeader";
 import { StatusMessage } from "../../../shared/ui/StatusMessage/StatusMessage";
 import type {
   AdminQuestionsResponse,
@@ -26,10 +28,13 @@ import "../../../shared/ui/EvaluationQuestionTable/EvaluationQuestionTable.css";
 import "../../peer-evaluation/PeerEvaluationPage.css";
 import "./AdminQuestionManagementPage.css";
 
-const questionPageMeta: Record<Extract<EvaluationType, "self" | "peer" | "manager_detail">, { title: string; eyebrow: string; weighted: boolean }> = {
-  self: { title: "자기평가 문항 관리", eyebrow: "Self", weighted: false },
-  peer: { title: "동료평가 문항 관리", eyebrow: "Peer", weighted: true },
-  manager_detail: { title: "팀원평가 문항 관리", eyebrow: "Manager Detail", weighted: true },
+const questionPageMeta: Record<
+  Extract<EvaluationType, "self" | "peer" | "manager_detail">,
+  { title: string; eyebrow: string; weighted: boolean; icon: typeof FileText }
+> = {
+  self: { title: "자기평가 문항 관리", eyebrow: "Self", weighted: false, icon: FileText },
+  peer: { title: "동료평가 문항 관리", eyebrow: "Peer", weighted: true, icon: ListChecks },
+  manager_detail: { title: "팀원평가 문항 관리", eyebrow: "Manager Detail", weighted: true, icon: ClipboardList },
 };
 
 export function AdminQuestionManagementPage({
@@ -53,6 +58,7 @@ export function AdminQuestionManagementPage({
   const [weight, setWeight] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [state, setState] = useState<EvaluationSystemStateResponse | null>(null);
+  const descriptionRef = useAutoResizeTextArea(description);
   const questions = useMemo(
     () =>
       (data?.questions ?? []).filter(
@@ -125,15 +131,16 @@ export function AdminQuestionManagementPage({
 
   return (
     <section className="dashboard">
-      <div className="page-heading">
-        <p className="eyebrow">{meta.eyebrow}</p>
-        <h1>{contextTitle ? `${contextTitle} 문항 관리` : meta.title}</h1>
-        <p>
-          {showGuide
+      <PageHeader
+        icon={meta.icon}
+        eyebrow={meta.eyebrow}
+        title={contextTitle ? `${contextTitle} 문항 관리` : meta.title}
+        description={
+          showGuide
             ? "안내문과 문항을 관리합니다. 안내문은 사용자 평가 화면에 표시됩니다."
-            : "이 팀에 적용할 팀원평가 문항을 관리합니다."}
-        </p>
-      </div>
+            : "이 팀에 적용할 팀원평가 문항을 관리합니다."
+        }
+      />
       <StatusMessage message={message} />
       {showGuide && <GuideEditor guide={guide} setGuide={setGuide} saveGuide={saveGuide} locked={isLocked} />}
       <section className="surface-panel">
@@ -159,12 +166,14 @@ export function AdminQuestionManagementPage({
               추가
             </button>
             <textarea
+              className="question-description-input"
               value={description}
               placeholder="설명"
               rows={1}
               onChange={(event) => setDescription(event.target.value)}
               required
               disabled={isLocked}
+              ref={descriptionRef}
             />
           </form>
         </div>
@@ -212,11 +221,12 @@ export function AdminTeamMemberQuestionTeamsPage({ user }: { user: CurrentUser |
 
   return (
     <section className="dashboard">
-      <div className="page-heading">
-        <p className="eyebrow">Manager Detail</p>
-        <h1>팀원평가 문항 관리</h1>
-        <p>공통 안내문과 조직도상 Team별 팀원평가 문항을 관리합니다.</p>
-      </div>
+      <PageHeader
+        icon={ClipboardList}
+        eyebrow="Manager Detail"
+        title="팀원평가 문항 관리"
+        description="공통 안내문과 조직도상 Team별 팀원평가 문항을 관리합니다."
+      />
       <StatusMessage message={message} />
       <GuideEditor guide={guide} setGuide={setGuide} saveGuide={saveGuide} locked={isLocked} />
       <div className="action-grid">
@@ -285,6 +295,8 @@ function GuideEditor({
   saveGuide: () => void;
   locked: boolean;
 }) {
+  const guideRef = useAutoResizeTextArea(guide);
+
   return (
     <section className="surface-panel">
       <div className="panel-title-row">
@@ -299,10 +311,27 @@ function GuideEditor({
         placeholder="Markdown 형식으로 안내문을 입력하세요."
         onChange={(event) => setGuide(event.target.value)}
         disabled={locked}
+        rows={1}
+        ref={guideRef}
       />
       <MarkdownBlock content={guide} />
     </section>
   );
+}
+
+function useAutoResizeTextArea(value: string) {
+  const ref = useRef<HTMLTextAreaElement | null>(null);
+
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (!element) {
+      return;
+    }
+    element.style.height = "0px";
+    element.style.height = `${element.scrollHeight}px`;
+  }, [value]);
+
+  return ref;
 }
 
 function QuestionTable({
@@ -319,23 +348,34 @@ function QuestionTable({
   return (
     <div className="question-table-wrap">
       <table className="question-table">
+        <colgroup>
+          <col className="question-table-col-title" />
+          <col className="question-table-col-description" />
+          {weighted && <col className="question-table-col-weight" />}
+          {weighted && <col className="question-table-col-effective" />}
+          <col className="question-table-col-management" />
+        </colgroup>
         <thead>
           <tr>
-            <th>항목</th>
-            <th>설명</th>
-            {weighted && <th>가중치</th>}
-            {weighted && <th>유효가중치</th>}
-            <th>관리</th>
+            <th className="question-table-heading-title">항목</th>
+            <th className="question-table-heading-description">설명</th>
+            {weighted && <th className="question-table-heading-weight">가중치</th>}
+            {weighted && <th className="question-table-heading-effective">유효가중치</th>}
+            <th className="question-table-heading-management">관리</th>
           </tr>
         </thead>
         <tbody>
           {questions.map((question) => (
             <tr key={question.id}>
-              <td>{question.title}</td>
-              <td>{question.description}</td>
-              {weighted && <td>{question.weight}</td>}
-              {weighted && <td>{question.effective_weight_percent ?? 0}%</td>}
-              <td>
+              <td className="question-table-cell-title">
+                <strong>{question.title}</strong>
+              </td>
+              <td className="question-table-cell-description">
+                <MultilineText text={question.description} />
+              </td>
+              {weighted && <td className="question-table-cell-weight">{question.weight}</td>}
+              {weighted && <td className="question-table-cell-effective">{question.effective_weight_percent ?? 0}%</td>}
+              <td className="question-table-cell-management">
                 <button
                   className="ghost-icon-button"
                   type="button"

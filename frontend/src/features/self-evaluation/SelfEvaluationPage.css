@@ -15,4 +15,5 @@
 .evaluation-question-panel p {
   margin: 6px 0 0;
   color: #64748b;
+  white-space: pre-wrap;
 }

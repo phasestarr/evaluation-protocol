@@ -22,3 +22,7 @@ class EvaluationGuideIn(BaseModel):
 
 class StartCycleIn(BaseModel):
     name: str
+
+
+class UserSystemRoleUpdateIn(BaseModel):
+    system_role: str

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { CheckSquare, Shield, UserRound, UsersRound } from "lucide-react";
+import { CheckSquare, LayoutDashboard, Shield, UserRound, UsersRound } from "lucide-react";
 import { fetchEvaluationProgress } from "../../shared/api/evaluations";
 import { systemRoleLabel } from "../../shared/labels/systemRoles";
 import { ActionCard } from "../../shared/ui/ActionCard/ActionCard";
 import { InfoBlock } from "../../shared/ui/InfoBlock/InfoBlock";
+import { PageHeader } from "../../shared/ui/PageHeader/PageHeader";
 import type { Action, CompletionStatus, CurrentUser, EvaluationProgressResponse } from "../../shared/types";
 import "./DashboardPage.css";
 
@@ -51,16 +52,18 @@ export function DashboardPage({ user }: { user: CurrentUser }) {
 
   return (
     <section className="dashboard">
-      <div className="dashboard-hero">
-        <div>
-          <p className="eyebrow">Dashboard</p>
-          <h1>{user.display_name || user.email}</h1>
-          <p>{user.organization_affiliation || "소속 부서 미지정"}</p>
-        </div>
-        <div className="role-stack">
-          <span className="role-pill">{systemRoleLabel(user.system_role)}</span>
-        </div>
-      </div>
+      <PageHeader
+        icon={LayoutDashboard}
+        className="dashboard-hero"
+        eyebrow="Dashboard"
+        title={user.display_name || user.email}
+        description={user.organization_affiliation || "소속 부서 미지정"}
+        aside={(
+          <div className="role-stack">
+            <span className="role-pill">{systemRoleLabel(user.system_role)}</span>
+          </div>
+        )}
+      />
 
       <div className="meta-grid">
         <InfoBlock label="메일" value={user.email} />

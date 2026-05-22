@@ -2,6 +2,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { FileUp, GitBranch, Table2 } from "lucide-react";
 import { fetchEvaluationState, importOrganizationCsv } from "../../../shared/api/admin";
+import { PageHeader } from "../../../shared/ui/PageHeader/PageHeader";
 import { StatusMessage } from "../../../shared/ui/StatusMessage/StatusMessage";
 import type { CurrentUser, EvaluationSystemStateResponse } from "../../../shared/types";
 import { AccessDeniedPage } from "../../access/AccessDeniedPage";
@@ -54,11 +55,12 @@ export function AdminOrganizationImportPage({ user }: { user: CurrentUser | null
 
   return (
     <section className="dashboard">
-      <div className="page-heading">
-        <p className="eyebrow">Organization</p>
-        <h1>조직 관리</h1>
-        <p>CSV 파일로 사용자 화이트리스트와 조직 트리를 한 번에 반영합니다.</p>
-      </div>
+      <PageHeader
+        icon={GitBranch}
+        eyebrow="Organization"
+        title="조직 관리"
+        description="CSV 파일로 사용자 화이트리스트와 조직 트리를 한 번에 반영합니다."
+      />
       <StatusMessage message={message} />
       {isLocked && <StatusMessage message="평가가 진행 중이므로 CSV 업로드와 검증이 잠겨 있습니다." />}
       <form className="surface-panel import-panel" onSubmit={submitImport}>

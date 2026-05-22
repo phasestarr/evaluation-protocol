@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { CheckSquare } from "lucide-react";
 import { fetchManagerDetailReviewContexts } from "../../shared/api/evaluations";
 import { CompletionBadge } from "../../shared/ui/ActionCard/ActionCard";
+import { PageHeader } from "../../shared/ui/PageHeader/PageHeader";
 import { StatusMessage } from "../../shared/ui/StatusMessage/StatusMessage";
 import type { PeerReviewContext } from "../../shared/types";
 import "../peer-evaluation/PeerEvaluationPage.css";
@@ -18,11 +20,7 @@ export function TeamMemberEvaluationListPage() {
 
   return (
     <section className="dashboard">
-      <div className="page-heading">
-        <p className="eyebrow">Manager Detail</p>
-        <h1>팀원평가</h1>
-        <p>평가할 대상자를 선택해 주세요.</p>
-      </div>
+      <PageHeader icon={CheckSquare} eyebrow="Manager Detail" title="팀원평가" description="평가할 대상자를 선택해 주세요." />
       <StatusMessage message={message} />
       <div className="action-grid">
         {contexts.map((context) => (

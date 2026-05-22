@@ -7,6 +7,7 @@ import {
   fetchEvaluationState,
 } from "../../../shared/api/admin";
 import { systemRoleLabel } from "../../../shared/labels/systemRoles";
+import { PageHeader } from "../../../shared/ui/PageHeader/PageHeader";
 import { StatusMessage } from "../../../shared/ui/StatusMessage/StatusMessage";
 import type {
   AdminUsersResponse,
@@ -84,11 +85,12 @@ export function AdminUsersPage({ user }: { user: CurrentUser | null }) {
 
   return (
     <section className="dashboard">
-      <div className="page-heading">
-        <p className="eyebrow">Admin</p>
-        <h1>사용자 추가</h1>
-        <p>Microsoft OAuth 로그인 허용 대상과 실제 로그인된 사용자를 분리해서 관리합니다.</p>
-      </div>
+      <PageHeader
+        icon={UserPlus}
+        eyebrow="Admin"
+        title="사용자 추가"
+        description="Microsoft OAuth 로그인 허용 대상과 실제 로그인된 사용자를 분리해서 관리합니다."
+      />
 
       <div className="admin-two-column">
         <section className="surface-panel">

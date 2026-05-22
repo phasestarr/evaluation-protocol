@@ -54,6 +54,10 @@
   color: #475569;
 }
 
+.manager-detail-question-table td:nth-child(2) {
+  white-space: pre-wrap;
+}
+
 .manager-detail-question-table th:nth-child(1),
 .manager-detail-question-table td:nth-child(1) {
   width: 16%;

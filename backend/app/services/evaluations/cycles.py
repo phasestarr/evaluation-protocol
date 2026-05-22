@@ -20,6 +20,7 @@ from app.constants import (
 from app.db.postgres.models import (
     EvaluationCycle,
     EvaluationCycleGuide,
+    EvaluationImportUserSnapshot,
     EvaluationCycleQuestion,
     EvaluationGuide,
     EvaluationMembershipSnapshot,
@@ -92,6 +93,7 @@ def start_evaluation_cycle(db: Session, name: str) -> EvaluationCycle:
     db.flush()
 
     participant_by_user_id = snapshot_participants(db, cycle)
+    snapshot_imported_users(db, cycle, participant_by_user_id)
     node_by_source_id = snapshot_org_nodes(db, cycle)
     snapshot_memberships(db, cycle, participant_by_user_id, node_by_source_id)
     snapshot_peer_teams(db, cycle, participant_by_user_id)
@@ -167,6 +169,42 @@ def snapshot_participants(db: Session, cycle: EvaluationCycle) -> dict[int, Eval
         db.flush()
         participant_by_user_id[user.id] = participant
     return participant_by_user_id
+
+
+def snapshot_imported_users(
+    db: Session,
+    cycle: EvaluationCycle,
+    participant_by_user_id: dict[int, EvaluationParticipant],
+) -> None:
+    imported_rows = db.scalars(
+        select(OrganizationImportUser).order_by(OrganizationImportUser.sort_order, OrganizationImportUser.id)
+    ).all()
+    import_row_by_user_id = {row.user_id: row for row in imported_rows}
+    participants = sorted(participant_by_user_id.values(), key=lambda item: (item.sort_order, item.id))
+    last_sort_order = imported_rows[-1].sort_order if imported_rows else 0
+    for index, participant in enumerate(participants, start=1):
+        import_row = import_row_by_user_id.get(participant.source_user_id or 0)
+        db.add(
+            EvaluationImportUserSnapshot(
+                cycle_id=cycle.id,
+                source_import_user_id=import_row.id if import_row else None,
+                participant_id=participant.id,
+                attributes_snapshot=import_row.attributes if import_row else "",
+                name_snapshot=(
+                    import_row.name
+                    if import_row
+                    else (participant.display_name_snapshot or participant.email_snapshot or f"user-{participant.id}")
+                ),
+                title_snapshot=import_row.title if import_row else (participant.job_title_snapshot or ""),
+                office_phone_snapshot=import_row.office_phone if import_row else "",
+                mobile_snapshot=import_row.mobile if import_row else "",
+                email_snapshot=import_row.email if import_row else (participant.email_snapshot or ""),
+                note_snapshot=import_row.note if import_row else "",
+                system_role_snapshot=participant.system_role_snapshot,
+                sort_order_snapshot=import_row.sort_order if import_row else last_sort_order + index,
+            )
+        )
+    db.flush()
 
 
 def snapshot_org_nodes(db: Session, cycle: EvaluationCycle) -> dict[int, EvaluationOrgNodeSnapshot]:

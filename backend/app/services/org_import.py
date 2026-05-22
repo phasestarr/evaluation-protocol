@@ -321,10 +321,24 @@ def apply_organization_import(db: Session, parsed: ParsedOrganizationImport) -> 
         root.name = parsed.company_name
         db.flush()
 
-        db.execute(delete(UserWhitelist).where(UserWhitelist.email != settings.initialization_email_normalized))
+        preserved_admin_emails = {
+            email
+            for email in db.scalars(
+                select(User.email).where(
+                    User.email != settings.initialization_email_normalized,
+                    User.system_role == SystemRole.admin,
+                )
+            ).all()
+        }
+        whitelist_delete = delete(UserWhitelist).where(UserWhitelist.email != settings.initialization_email_normalized)
+        if preserved_admin_emails:
+            whitelist_delete = whitelist_delete.where(UserWhitelist.email.not_in(preserved_admin_emails))
+        db.execute(whitelist_delete)
         user_delete = delete(User).where(User.email != settings.initialization_email_normalized)
         if csv_emails:
             user_delete = user_delete.where(User.email.not_in(csv_emails))
+        if preserved_admin_emails:
+            user_delete = user_delete.where(User.email.not_in(preserved_admin_emails))
         db.execute(user_delete)
         db.flush()
 
@@ -404,6 +418,7 @@ def list_imported_users(db: Session) -> list[dict]:
 
 def serialize_import_user_row(row: OrganizationImportUser) -> dict:
     return {
+        "user_id": row.user_id,
         "line_number": row.sort_order,
         "attributes": row.attributes,
         "name": row.name,
@@ -412,6 +427,7 @@ def serialize_import_user_row(row: OrganizationImportUser) -> dict:
         "mobile": row.mobile,
         "email": row.email,
         "note": row.note,
+        "system_role": row.user.system_role.value if row.user is not None else SystemRole.user.value,
     }
 
 

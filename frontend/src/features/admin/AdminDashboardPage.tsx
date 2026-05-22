@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useState } from "react";
-import { BarChart3, ClipboardList, FileText, GitBranch, ListChecks, Play, Square, UsersRound } from "lucide-react";
+import { BarChart3, ClipboardList, FileText, GitBranch, ListChecks, Play, Shield, Square, UsersRound } from "lucide-react";
 import {
   fetchAdminReadiness,
   fetchEvaluationState,
@@ -7,6 +7,7 @@ import {
   stopEvaluationCycle,
 } from "../../shared/api/admin";
 import { ActionCard } from "../../shared/ui/ActionCard/ActionCard";
+import { PageHeader } from "../../shared/ui/PageHeader/PageHeader";
 import { StatusMessage } from "../../shared/ui/StatusMessage/StatusMessage";
 import type {
   AdminReadinessResponse,
@@ -66,11 +67,7 @@ export function AdminDashboardPage({ user }: { user: CurrentUser | null }) {
 
   return (
     <section className="dashboard">
-      <div className="page-heading">
-        <p className="eyebrow">Admin</p>
-        <h1>관리자 페이지</h1>
-        <p>사용자, 조직, 문항, 평가 결과를 관리합니다.</p>
-      </div>
+      <PageHeader icon={Shield} eyebrow="Admin" title="관리자 페이지" description="사용자, 조직, 문항, 평가 결과를 관리합니다." />
       <StatusMessage message={message} />
       <div className="admin-layout">
         <div className="surface-panel">

@@ -1,8 +1,10 @@
+import type { ReactNode } from "react";
 import type {
   AdminOrganizationNode,
   AdminOrgTreeResponse,
   ImportedPersonRow,
   OrganizationMembership,
+  UserTableRowBase,
 } from "../../../shared/types";
 import "./AdminOrganizationPages.css";
 
@@ -10,7 +12,15 @@ type TreeNode = AdminOrganizationNode & {
   children: TreeNode[];
 };
 
-export function ImportedUsersTable({ people }: { people: ImportedPersonRow[] }) {
+export function ImportedUsersTable({
+  people,
+  managementLabel = "management",
+  renderManagement,
+}: {
+  people: UserTableRowBase[];
+  managementLabel?: string;
+  renderManagement?: (person: UserTableRowBase) => ReactNode;
+}) {
   return (
     <div className="surface-panel evaluation-table-panel">
       <div className="evaluation-table-wrap">
@@ -24,6 +34,7 @@ export function ImportedUsersTable({ people }: { people: ImportedPersonRow[] }) 
               <th>mobile</th>
               <th>email</th>
               <th>note</th>
+              <th>{managementLabel}</th>
             </tr>
           </thead>
           <tbody>
@@ -36,6 +47,7 @@ export function ImportedUsersTable({ people }: { people: ImportedPersonRow[] }) 
                 <td>{person.mobile}</td>
                 <td>{person.email}</td>
                 <td>{person.note}</td>
+                <td>{renderManagement ? renderManagement(person) : "-"}</td>
               </tr>
             ))}
           </tbody>

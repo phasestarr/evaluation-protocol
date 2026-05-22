@@ -5,6 +5,7 @@ from app.api.contracts.admin import (
     EvaluationGuideIn,
     EvaluationQuestionCreateIn,
     StartCycleIn,
+    UserSystemRoleUpdateIn,
     WhitelistCreateIn,
 )
 from app.db.postgres.session import get_db
@@ -14,7 +15,9 @@ from app.services.admin import (
     delete_whitelist_user,
     list_admin_users_payload,
     list_manager_detail_question_teams_payload,
+    update_user_system_role,
 )
+from app.services.results import cycle_result_users_payload, list_result_cycles_payload, participant_result_payload
 from app.services.authz import require_admin, require_admin_idle
 from app.services.evaluations.cycles import (
     get_system_state,
@@ -96,6 +99,17 @@ def admin_org_tree(request: Request, db: Session = Depends(get_db)) -> dict:
     return admin_org_tree_payload(db)
 
 
+@router.put("/org/users/{user_id}/system-role")
+def admin_update_org_user_system_role(
+    user_id: int,
+    payload: UserSystemRoleUpdateIn,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> dict:
+    require_admin(request, db)
+    return {"user": update_user_system_role(db, user_id, payload.system_role)}
+
+
 @router.post("/org/import-csv")
 def admin_import_org_csv(request: Request, file: UploadFile = File(...), db: Session = Depends(get_db)) -> dict:
     require_admin_idle(request, db)
@@ -170,3 +184,21 @@ def save_admin_evaluation_guide(
     require_admin_idle(request, db)
     save_evaluation_guide(db, evaluation_type, payload.content)
     return {"ok": True}
+
+
+@router.get("/results/cycles")
+def admin_result_cycles(request: Request, db: Session = Depends(get_db)) -> dict[str, list[dict]]:
+    require_admin(request, db)
+    return list_result_cycles_payload(db)
+
+
+@router.get("/results/cycles/{cycle_id}/users")
+def admin_result_cycle_users(cycle_id: int, request: Request, db: Session = Depends(get_db)) -> dict:
+    require_admin(request, db)
+    return cycle_result_users_payload(db, cycle_id)
+
+
+@router.get("/results/cycles/{cycle_id}/users/{participant_id}")
+def admin_result_participant(cycle_id: int, participant_id: int, request: Request, db: Session = Depends(get_db)) -> dict:
+    require_admin(request, db)
+    return participant_result_payload(db, cycle_id, participant_id)

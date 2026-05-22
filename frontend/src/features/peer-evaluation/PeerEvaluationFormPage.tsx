@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { UsersRound } from "lucide-react";
 import { fetchPeerReview, savePeerReviewScores } from "../../shared/api/evaluations";
 import { averageTotal, cellKey, normalizeScoreDraft, weightedTotal } from "../../shared/lib/weightedScoring";
 import { EvaluationQuestionTable } from "../../shared/ui/EvaluationQuestionTable/EvaluationQuestionTable";
 import { MarkdownBlock } from "../../shared/ui/MarkdownBlock/MarkdownBlock";
+import { PageHeader } from "../../shared/ui/PageHeader/PageHeader";
 import { StatusMessage } from "../../shared/ui/StatusMessage/StatusMessage";
 import type { PeerReviewResponse, PeerReviewTarget } from "../../shared/types";
 import "./PeerEvaluationPage.css";
@@ -57,20 +59,16 @@ export function PeerEvaluationFormPage() {
 
   return (
     <section className="dashboard">
-      <div className="page-heading">
-        <p className="eyebrow">Peer Review</p>
-        <h1>{data?.team.title || "동료평가"}</h1>
-        <MarkdownBlock content={data?.guide_content || "문항 설명이 등록되지 않았습니다. 관리자에게 문의해주세요."} />
+      <PageHeader
+        icon={UsersRound}
+        descriptionPlacement="full-width"
+        childrenPlacement="full-width"
+        eyebrow="Peer Review"
+        title={data?.team.title || "동료평가"}
+        description={<MarkdownBlock content={data?.guide_content || "문항 설명이 등록되지 않았습니다. 관리자에게 문의해주세요."} />}
+      >
         <EvaluationQuestionTable questions={questions} weighted framed />
-      </div>
-      <div className="toolbar-row">
-        <Link className="secondary-inline-button" to="/peer-review">
-          목록
-        </Link>
-        <button className="inline-button" type="button" onClick={saveScores}>
-          저장
-        </button>
-      </div>
+      </PageHeader>
       <StatusMessage message={message} />
       <div className="surface-panel evaluation-table-panel">
         <div className="evaluation-table-wrap">
@@ -119,6 +117,14 @@ export function PeerEvaluationFormPage() {
         </div>
         {data && questions.length === 0 && <p className="empty-copy">등록된 동료평가 문항이 없습니다.</p>}
         {data && targets.length === 0 && <p className="empty-copy">평가 대상자가 없습니다.</p>}
+      </div>
+      <div className="toolbar-row">
+        <Link className="secondary-inline-button" to="/peer-review">
+          목록
+        </Link>
+        <button className="inline-button" type="button" onClick={saveScores}>
+          저장
+        </button>
       </div>
     </section>
   );

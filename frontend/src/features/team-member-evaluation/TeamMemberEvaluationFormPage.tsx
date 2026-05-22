@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { CheckSquare } from "lucide-react";
 import { fetchManagerDetailReview, saveManagerDetailReviewScores } from "../../shared/api/evaluations";
 import { cellKey, normalizeScoreDraft, weightedQuestionScore, weightedTotal } from "../../shared/lib/weightedScoring";
 import { EvaluationQuestionTable } from "../../shared/ui/EvaluationQuestionTable/EvaluationQuestionTable";
 import { MarkdownBlock } from "../../shared/ui/MarkdownBlock/MarkdownBlock";
+import { MultilineText } from "../../shared/ui/MultilineText/MultilineText";
+import { PageHeader } from "../../shared/ui/PageHeader/PageHeader";
 import { StatusMessage } from "../../shared/ui/StatusMessage/StatusMessage";
 import type { ManagerDetailReviewResponse, PeerReviewTarget } from "../../shared/types";
 import "./TeamMemberEvaluationPage.css";
@@ -61,11 +64,23 @@ export function TeamMemberEvaluationFormPage() {
 
   return (
     <section className="dashboard">
-      <div className="page-heading">
-        <p className="eyebrow">Manager Detail</p>
-        <h1>{target ? `${[target.job_title, target.display_name || target.email].filter(Boolean).join(" ")} 평가` : data?.team.title || "팀원평가"}</h1>
-        <MarkdownBlock content={data?.guide_content || "문항 설명이 등록되지 않았습니다. 관리자에게 문의해주세요."} />
+      <PageHeader
+        icon={CheckSquare}
+        descriptionPlacement="full-width"
+        childrenPlacement="full-width"
+        eyebrow="Manager Detail"
+        title={target ? `${[target.job_title, target.display_name || target.email].filter(Boolean).join(" ")} 평가` : data?.team.title || "팀원평가"}
+        description={<MarkdownBlock content={data?.guide_content || "문항 설명이 등록되지 않았습니다. 관리자에게 문의해주세요."} />}
+      >
         <EvaluationQuestionTable questions={questions} weighted framed />
+      </PageHeader>
+      <StatusMessage message={message} />
+      <div className="manager-detail-target-stack">
+        {target && (
+          <TargetEvaluationPanel drafts={drafts} questions={questions} setDrafts={setDrafts} target={target} />
+        )}
+        {data && questions.length === 0 && <p className="empty-copy">등록된 팀원평가 문항이 없습니다.</p>}
+        {data && !target && <p className="empty-copy">평가 대상자가 없습니다.</p>}
       </div>
       <div className="toolbar-row">
         <Link className="secondary-inline-button" to="/manager-detail-review">
@@ -74,14 +89,6 @@ export function TeamMemberEvaluationFormPage() {
         <button className="inline-button" type="button" onClick={saveScores}>
           저장
         </button>
-      </div>
-      <StatusMessage message={message} />
-      <div className="manager-detail-target-stack">
-        {target && (
-          <TargetEvaluationPanel drafts={drafts} questions={questions} setDrafts={setDrafts} target={target} />
-        )}
-        {data && questions.length === 0 && <p className="empty-copy">등록된 팀원평가 문항이 없습니다.</p>}
-        {data && !target && <p className="empty-copy">평가 대상자가 없습니다.</p>}
       </div>
     </section>
   );
@@ -131,7 +138,9 @@ function TargetEvaluationPanel({
                 <td>
                   <strong>{question.title}</strong>
                 </td>
-                <td>{question.description}</td>
+                <td>
+                  <MultilineText text={question.description} />
+                </td>
                 <td>
                   <input
                     inputMode="numeric"

@@ -4,7 +4,8 @@
   padding: 12px;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
-  resize: vertical;
+  resize: none;
+  overflow: hidden;
 }
 
 .question-create-bubble {
@@ -41,4 +42,22 @@
   padding: 10px 12px;
   resize: none;
   overflow: hidden;
+}
+
+.question-description-input {
+  white-space: pre-wrap;
+}
+
+.question-table-col-management {
+  width: 88px;
+}
+
+.question-table-heading-management,
+.question-table-cell-management {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.question-table-cell-description {
+  white-space: pre-wrap;
 }

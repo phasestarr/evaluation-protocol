@@ -1,6 +1,7 @@
 import { type FormEvent, useEffect, useState } from "react";
-import { FileUp } from "lucide-react";
+import { FileUp, UsersRound } from "lucide-react";
 import { fetchEvaluationState, fetchPeerTeams, importPeerTeamsCsv } from "../../../shared/api/admin";
+import { PageHeader } from "../../../shared/ui/PageHeader/PageHeader";
 import { StatusMessage } from "../../../shared/ui/StatusMessage/StatusMessage";
 import type { CurrentUser, EvaluationSystemStateResponse, PeerTeam } from "../../../shared/types";
 import { AccessDeniedPage } from "../../access/AccessDeniedPage";
@@ -58,11 +59,12 @@ export function AdminPeerTeamsPage({ user }: { user: CurrentUser | null }) {
 
   return (
     <section className="dashboard">
-      <div className="page-heading">
-        <p className="eyebrow">Peer Teams</p>
-        <h1>동료평가 팀 관리</h1>
-        <p>CSV 파일로 동료평가 팀과 대상자를 반영합니다.</p>
-      </div>
+      <PageHeader
+        icon={UsersRound}
+        eyebrow="Peer Teams"
+        title="동료평가 팀 관리"
+        description="CSV 파일로 동료평가 팀과 대상자를 반영합니다."
+      />
       <StatusMessage message={message} />
       {isLocked && <StatusMessage message="평가가 진행 중이므로 CSV 업로드와 검증이 잠겨 있습니다." />}
       <form className="surface-panel import-panel" onSubmit={submitImport}>

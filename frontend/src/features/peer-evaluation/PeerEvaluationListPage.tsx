@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { UsersRound } from "lucide-react";
 import { fetchPeerReviewContexts } from "../../shared/api/evaluations";
 import { CompletionBadge } from "../../shared/ui/ActionCard/ActionCard";
+import { PageHeader } from "../../shared/ui/PageHeader/PageHeader";
 import { StatusMessage } from "../../shared/ui/StatusMessage/StatusMessage";
 import type { PeerReviewContext } from "../../shared/types";
 import "./PeerEvaluationPage.css";
@@ -18,11 +20,7 @@ export function PeerEvaluationListPage() {
 
   return (
     <section className="dashboard">
-      <div className="page-heading">
-        <p className="eyebrow">Peer Review</p>
-        <h1>동료평가</h1>
-        <p>평가할 팀을 선택해 주세요.</p>
-      </div>
+      <PageHeader icon={UsersRound} eyebrow="Peer Review" title="동료평가" description="평가할 팀을 선택해 주세요." />
       <StatusMessage message={message} />
       <div className="action-grid">
         {contexts.map((context) => (

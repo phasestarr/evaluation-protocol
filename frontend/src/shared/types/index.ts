@@ -121,15 +121,24 @@ export interface AdminOrgTreeResponse {
   whitelist: WhitelistEntry[];
 }
 
-export interface ImportedPersonRow {
+export interface UserTableRowBase {
   line_number: number;
-  attributes: "LEADER" | "MEMBER";
+  attributes: string;
   name: string;
   title: string;
   office_phone: string;
   mobile: string;
   email: string;
   note: string;
+  system_role: SystemRole;
+}
+
+export interface ImportedPersonRow extends UserTableRowBase {
+  user_id: number;
+}
+
+export interface ResultSnapshotUserRow extends UserTableRowBase {
+  participant_id: number;
 }
 
 export interface OrganizationImportResponse {
@@ -240,4 +249,51 @@ export interface EvaluationProgressResponse {
   self: EvaluationCompletionSummary;
   peer: EvaluationContextCompletionSummary;
   manager_detail: EvaluationContextCompletionSummary;
+}
+
+export interface ResultCycleSummary extends EvaluationCycleSummary {
+  participant_count: number;
+}
+
+export interface ResultCyclesResponse {
+  cycles: ResultCycleSummary[];
+}
+
+export interface ResultCycleUsersResponse {
+  cycle: ResultCycleSummary;
+  users: ResultSnapshotUserRow[];
+}
+
+export interface ResultReviewerRow {
+  user_id: number;
+  display_name: string | null;
+  email: string | null;
+  job_title: string | null;
+  role_label: string;
+  affiliation: string;
+}
+
+export interface ResultReviewSection {
+  team: {
+    id: number | null;
+    title: string;
+  };
+  guide_content: string;
+  questions: EvaluationQuestion[];
+  reviewers: ResultReviewerRow[];
+  scores: Record<string, number>;
+}
+
+export interface ResultParticipantResponse {
+  cycle: ResultCycleSummary;
+  user: ResultSnapshotUserRow;
+  self_review: {
+    guide_content: string;
+    items: Array<{
+      question: EvaluationQuestion;
+      answer_text: string;
+    }>;
+  };
+  peer_reviews: ResultReviewSection[];
+  manager_detail_reviews: ResultReviewSection[];
 }

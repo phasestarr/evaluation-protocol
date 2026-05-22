@@ -7,8 +7,8 @@ from sqlalchemy import inspect
 from app.config import get_settings
 from app.db.postgres.session import engine
 
-CURRENT_REVISION = "20260518_000001"
-MANAGED_TABLES = {
+BASELINE_REVISION = "20260518_000001"
+BASELINE_TABLES = {
     "evaluation_cycle_guides",
     "evaluation_cycle_questions",
     "evaluation_cycles",
@@ -42,8 +42,7 @@ def run_database_migrations() -> None:
     config.set_main_option("sqlalchemy.url", get_settings().database_url)
 
     existing_tables = set(inspect(engine).get_table_names())
-    if "alembic_version" not in existing_tables and MANAGED_TABLES.issubset(existing_tables):
-        command.stamp(config, CURRENT_REVISION)
-        return
+    if "alembic_version" not in existing_tables and BASELINE_TABLES.issubset(existing_tables):
+        command.stamp(config, BASELINE_REVISION)
 
     command.upgrade(config, "head")

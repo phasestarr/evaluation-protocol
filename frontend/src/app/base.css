@@ -23,6 +23,10 @@ body,
   min-height: 100%;
 }
 
+html {
+  scrollbar-gutter: stable both-edges;
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -57,29 +61,6 @@ button {
   font-size: 13px;
   font-weight: 700;
   text-transform: uppercase;
-}
-
-.page-heading {
-  padding: 24px 0 10px;
-}
-
-.page-heading .eyebrow {
-  margin-top: 0;
-}
-
-.page-heading h1 {
-  margin: 0;
-  color: #0f172a;
-  font-size: clamp(30px, 4vw, 42px);
-  line-height: 1.15;
-}
-
-.page-heading p {
-  color: #64748b;
-}
-
-.page-heading .markdown-block {
-  margin-top: 12px;
 }
 
 .work-section {
@@ -425,6 +406,21 @@ button {
 .target-label span {
   color: #64748b;
   font-size: 13px;
+}
+
+.result-management-cell {
+  display: grid;
+  align-items: center;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+}
+
+.result-management-cell .role-pill {
+  justify-self: start;
+}
+
+.result-management-action {
+  justify-self: end;
 }
 
 @media (max-width: 760px) {

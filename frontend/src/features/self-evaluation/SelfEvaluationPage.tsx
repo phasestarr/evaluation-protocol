@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { UserRound } from "lucide-react";
 import { fetchSelfReview, saveSelfReviewAnswer } from "../../shared/api/evaluations";
 import { EvaluationQuestionTable } from "../../shared/ui/EvaluationQuestionTable/EvaluationQuestionTable";
 import { MarkdownBlock } from "../../shared/ui/MarkdownBlock/MarkdownBlock";
+import { MultilineText } from "../../shared/ui/MultilineText/MultilineText";
+import { PageHeader } from "../../shared/ui/PageHeader/PageHeader";
 import { StatusMessage } from "../../shared/ui/StatusMessage/StatusMessage";
 import type { EvaluationQuestion, SelfReviewResponse } from "../../shared/types";
 import "./SelfEvaluationPage.css";
@@ -44,12 +47,16 @@ export function SelfEvaluationPage() {
 
   return (
     <section className="dashboard">
-      <div className="page-heading">
-        <p className="eyebrow">Self Review</p>
-        <h1>자기평가</h1>
-        <MarkdownBlock content={data?.guide_content || "문항 설명이 등록되지 않았습니다. 관리자에게 문의하세요."} />
+      <PageHeader
+        icon={UserRound}
+        descriptionPlacement="full-width"
+        childrenPlacement="full-width"
+        eyebrow="Self Review"
+        title="자기평가"
+        description={<MarkdownBlock content={data?.guide_content || "문항 설명이 등록되지 않았습니다. 관리자에게 문의하세요."} />}
+      >
         <EvaluationQuestionTable questions={questions} weighted={false} framed />
-      </div>
+      </PageHeader>
       <StatusMessage message={message} />
       <div className="evaluation-stack">
         {questions.map((question) => {
@@ -58,7 +65,11 @@ export function SelfEvaluationPage() {
             <section className="surface-panel evaluation-question-panel" key={question.id}>
               <div>
                 <h2>{question.title}</h2>
-                {question.description && <p>{question.description}</p>}
+                {question.description && (
+                  <p>
+                    <MultilineText text={question.description} />
+                  </p>
+                )}
               </div>
               <textarea
                 maxLength={ANSWER_LIMIT}
