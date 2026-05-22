@@ -1,14 +1,14 @@
 import asyncio
 
-from app.auth import (
+from app.config import get_settings
+from app.db.postgres.migrations import run_database_migrations
+from app.db.postgres.session import SessionLocal
+from app.services.auth import (
     cleanup_expired_sessions,
     cleanup_oauth_transactions,
     seed_initialization_user,
 )
-from app.config import get_settings
-from app.db.postgres.migrations import run_database_migrations
-from app.db.postgres.session import SessionLocal
-from app.services.evaluation import seed_evaluation_system_state
+from app.services.evaluations.cycles import seed_evaluation_system_state
 from app.services.organization import seed_root_organization
 
 settings = get_settings()

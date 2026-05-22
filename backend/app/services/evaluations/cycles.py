@@ -1,8 +1,8 @@
-from datetime import UTC, date, datetime
 from collections import defaultdict
+from datetime import UTC, date, datetime
 
 from fastapi import HTTPException
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -16,7 +16,6 @@ from app.constants import (
     SELF,
     SYSTEM_IDLE,
     SYSTEM_RUNNING,
-    WEIGHTED_EVALUATION_TYPES,
 )
 from app.db.postgres.models import (
     EvaluationCycle,
@@ -25,24 +24,20 @@ from app.db.postgres.models import (
     EvaluationGuide,
     EvaluationMembershipSnapshot,
     EvaluationOrgNodeSnapshot,
+    EvaluationParticipant,
     EvaluationPeerTeamMemberSnapshot,
     EvaluationPeerTeamSnapshot,
-    EvaluationParticipant,
     EvaluationQuestion,
     EvaluationSystemState,
+    OrganizationImportUser,
     OrganizationMembership,
     OrganizationMembershipRole,
-    OrganizationImportUser,
     OrganizationNode,
     OrganizationNodeType,
-    PeerReviewTeamMember,
     PeerReviewTeam,
     ReviewAssignment,
-    ReviewScore,
-    SelfReviewAnswer,
     User,
 )
-from app.services.text import normalize_optional_text
 
 settings = get_settings()
 
@@ -446,96 +441,6 @@ def serialize_cycle(cycle: EvaluationCycle) -> dict:
     }
 
 
-def list_questions(db: Session) -> list[EvaluationQuestion]:
-    return db.scalars(
-        select(EvaluationQuestion).order_by(
-            EvaluationQuestion.evaluation_type,
-            EvaluationQuestion.organization_node_id,
-            EvaluationQuestion.sort_order,
-            EvaluationQuestion.id,
-        )
-    ).all()
-
-
-def create_question(
-    db: Session,
-    evaluation_type_value: str,
-    title_value: str,
-    description: str | None,
-    weight_value: int | None,
-    organization_node_id: int | None = None,
-) -> EvaluationQuestion:
-    evaluation_type = parse_evaluation_type(evaluation_type_value)
-    title = title_value.strip()
-    if not title:
-        raise HTTPException(status_code=400, detail="Question title is required")
-    normalized_description = normalize_optional_text(description)
-    if normalized_description is None:
-        raise HTTPException(status_code=400, detail="Question description is required")
-
-    weight = None
-    if evaluation_type in WEIGHTED_EVALUATION_TYPES:
-        if weight_value is None or weight_value <= 0:
-            raise HTTPException(status_code=400, detail="Question weight must be greater than zero")
-        weight = weight_value
-
-    if evaluation_type == MANAGER_DETAIL:
-        if organization_node_id is None:
-            raise HTTPException(status_code=400, detail="Manager detail questions require a team")
-        organization_node = db.get(OrganizationNode, organization_node_id)
-        if organization_node is None or organization_node.node_type != OrganizationNodeType.team:
-            raise HTTPException(status_code=400, detail="Manager detail questions require an organization team")
-    elif organization_node_id is not None:
-        raise HTTPException(status_code=400, detail="Only manager detail questions can be scoped to a team")
-
-    next_sort_order = (
-        db.scalar(
-            select(func.coalesce(func.max(EvaluationQuestion.sort_order), 0)).where(
-                EvaluationQuestion.evaluation_type == evaluation_type,
-                EvaluationQuestion.organization_node_id == organization_node_id,
-            )
-        )
-        or 0
-    ) + 1
-    question = EvaluationQuestion(
-        evaluation_type=evaluation_type,
-        organization_node_id=organization_node_id,
-        title=title,
-        description=normalized_description,
-        weight=weight,
-        sort_order=next_sort_order,
-        is_active=True,
-    )
-    db.add(question)
-    db.commit()
-    db.refresh(question)
-    return question
-
-
-def delete_question(db: Session, question_id: int) -> None:
-    question = db.get(EvaluationQuestion, question_id)
-    if question is not None:
-        db.delete(question)
-        db.commit()
-
-
-def evaluation_guide_content(db: Session, evaluation_type: str) -> str:
-    guide = db.scalar(select(EvaluationGuide).where(EvaluationGuide.evaluation_type == evaluation_type))
-    return guide.content if guide else ""
-
-
-def save_evaluation_guide(db: Session, evaluation_type_value: str, content: str) -> str:
-    evaluation_type = parse_evaluation_type(evaluation_type_value)
-    guide = db.scalar(select(EvaluationGuide).where(EvaluationGuide.evaluation_type == evaluation_type))
-    if guide is None:
-        guide = EvaluationGuide(evaluation_type=evaluation_type, content=content)
-        db.add(guide)
-    else:
-        guide.content = content
-    db.commit()
-    return evaluation_type
-
-
 def require_cycle_participant(db: Session, cycle: EvaluationCycle, user: User) -> EvaluationParticipant:
     participant = db.scalar(
         select(EvaluationParticipant).where(
@@ -586,213 +491,3 @@ def cycle_guide_content(db: Session, cycle: EvaluationCycle, evaluation_type: st
         )
     )
     return guide.content_markdown_snapshot if guide else ""
-
-
-def serialize_question(question: EvaluationQuestion, effective_weight_percent: float | None) -> dict:
-    return {
-        "id": question.id,
-        "evaluation_type": question.evaluation_type,
-        "organization_node_id": question.organization_node_id,
-        "title": question.title,
-        "description": question.description,
-        "weight": question.weight,
-        "effective_weight_percent": effective_weight_percent,
-        "sort_order": question.sort_order,
-        "is_active": question.is_active,
-    }
-
-
-def serialize_cycle_question(question: EvaluationCycleQuestion, effective_weight_percent: float | None) -> dict:
-    return {
-        "id": question.id,
-        "evaluation_type": question.evaluation_type,
-        "organization_node_id": question.context_team_snapshot_id,
-        "title": question.title_snapshot,
-        "description": question.description_snapshot,
-        "weight": question.weight_snapshot,
-        "effective_weight_percent": effective_weight_percent,
-        "sort_order": question.sort_order_snapshot,
-        "is_active": True,
-    }
-
-
-def serialize_questions_with_effective_weights(questions: list[EvaluationQuestion]) -> list[dict]:
-    total_weight_by_scope: dict[tuple[str, int | None], int] = {}
-    for question in questions:
-        if question.evaluation_type in WEIGHTED_EVALUATION_TYPES:
-            key = (question.evaluation_type, question.organization_node_id)
-            total_weight_by_scope[key] = total_weight_by_scope.get(key, 0) + (question.weight or 0)
-    result: list[dict] = []
-    for question in questions:
-        effective_weight = None
-        total_weight = total_weight_by_scope.get((question.evaluation_type, question.organization_node_id), 0)
-        if question.evaluation_type in WEIGHTED_EVALUATION_TYPES and total_weight > 0 and question.weight:
-            effective_weight = round(question.weight / total_weight * 100, 2)
-        result.append(serialize_question(question, effective_weight))
-    return result
-
-
-def serialize_cycle_questions_with_effective_weights(questions: list[EvaluationCycleQuestion]) -> list[dict]:
-    total_weight_by_scope: dict[tuple[str, int | None], int] = {}
-    for question in questions:
-        if question.evaluation_type in WEIGHTED_EVALUATION_TYPES:
-            key = (question.evaluation_type, question.context_team_snapshot_id)
-            total_weight_by_scope[key] = total_weight_by_scope.get(key, 0) + (question.weight_snapshot or 0)
-    result: list[dict] = []
-    for question in questions:
-        effective_weight = None
-        total_weight = total_weight_by_scope.get((question.evaluation_type, question.context_team_snapshot_id), 0)
-        if question.evaluation_type in WEIGHTED_EVALUATION_TYPES and total_weight > 0 and question.weight_snapshot:
-            effective_weight = round(question.weight_snapshot / total_weight * 100, 2)
-        result.append(serialize_cycle_question(question, effective_weight))
-    return result
-
-
-def parse_evaluation_type(value: str) -> str:
-    if value not in EVALUATION_TYPES:
-        raise HTTPException(status_code=400, detail="Invalid evaluation type")
-    return value
-
-
-def save_self_answer(
-    db: Session,
-    assignment: ReviewAssignment,
-    question: EvaluationCycleQuestion,
-    answer_text: str,
-) -> None:
-    if assignment.cycle_id != question.cycle_id:
-        raise HTTPException(status_code=400, detail="Assignment and question belong to different cycles")
-    answer = db.scalar(
-        select(SelfReviewAnswer).where(
-            SelfReviewAnswer.assignment_id == assignment.id,
-            SelfReviewAnswer.cycle_question_id == question.id,
-        )
-    )
-    if answer is None:
-        answer = SelfReviewAnswer(
-            cycle_id=assignment.cycle_id,
-            assignment_id=assignment.id,
-            cycle_question_id=question.id,
-            answer_text=answer_text,
-        )
-        db.add(answer)
-    else:
-        answer.answer_text = answer_text
-    db.commit()
-
-
-def save_review_score(db: Session, assignment: ReviewAssignment, question_id: int, score_value: int) -> None:
-    score = db.scalar(
-        select(ReviewScore).where(
-            ReviewScore.assignment_id == assignment.id,
-            ReviewScore.cycle_question_id == question_id,
-        )
-    )
-    if score is None:
-        db.add(
-            ReviewScore(
-                cycle_id=assignment.cycle_id,
-                assignment_id=assignment.id,
-                cycle_question_id=question_id,
-                score=score_value,
-            )
-        )
-    else:
-        score.score = score_value
-
-
-def admin_readiness(db: Session) -> dict:
-    org_user_count = db.scalar(select(func.count()).select_from(OrganizationImportUser)) or 0
-    non_root_node_count = db.scalar(
-        select(func.count())
-        .select_from(OrganizationNode)
-        .where(OrganizationNode.node_type != OrganizationNodeType.company)
-    ) or 0
-    peer_team_count = db.scalar(select(func.count()).select_from(PeerReviewTeam)) or 0
-    peer_team_member_count = db.scalar(select(func.count()).select_from(PeerReviewTeamMember)) or 0
-    self_question_stats = active_question_stats(db, SELF)
-    peer_question_stats = active_question_stats(db, PEER)
-    manager_guide_complete = evaluation_guide_exists(db, MANAGER_DETAIL)
-
-    teams = db.scalars(
-        select(OrganizationNode)
-        .where(OrganizationNode.node_type == OrganizationNodeType.team)
-        .order_by(OrganizationNode.id)
-    ).all()
-    manager_question_stats = {
-        team.id: active_question_stats(db, MANAGER_DETAIL, team.id)
-        for team in teams
-    }
-    manager_team_items = [
-        {
-            "id": team.id,
-            "name": team.name,
-            "complete": manager_question_stats[team.id]["complete"],
-            "question_count": manager_question_stats[team.id]["total_count"],
-            "complete_question_count": manager_question_stats[team.id]["complete_count"],
-        }
-        for team in teams
-    ]
-
-    items = {
-        "organization": {
-            "complete": org_user_count > 0 and non_root_node_count > 0,
-            "label": "조직 관리",
-            "detail": f"사용자 {org_user_count}명, 조직 노드 {non_root_node_count}개",
-        },
-        "peer_teams": {
-            "complete": peer_team_count > 0 and peer_team_member_count > 0,
-            "label": "동료평가 팀 관리",
-            "detail": f"팀 {peer_team_count}개, 멤버 {peer_team_member_count}명",
-        },
-        "self_questions": {
-            "complete": self_question_stats["complete"],
-            "label": "자기평가 문항 관리",
-            "detail": question_readiness_detail(self_question_stats),
-        },
-        "peer_questions": {
-            "complete": peer_question_stats["complete"],
-            "label": "동료평가 문항 관리",
-            "detail": question_readiness_detail(peer_question_stats),
-        },
-        "manager_detail_questions": {
-            "complete": bool(manager_team_items) and all(item["complete"] for item in manager_team_items),
-            "label": "팀원평가 문항 관리",
-            "detail": (
-                f"{'안내문 완료' if manager_guide_complete else '안내문 미완료'}, "
-                f"완료 {sum(1 for item in manager_team_items if item['complete'])}/{len(manager_team_items)}팀"
-            ),
-            "teams": manager_team_items,
-        },
-    }
-    return {
-        "ready": all(item["complete"] for item in items.values()),
-        "items": items,
-    }
-
-
-def active_question_stats(db: Session, evaluation_type: str, organization_node_id: int | None = None) -> dict:
-    query = select(EvaluationQuestion).where(
-        EvaluationQuestion.evaluation_type == evaluation_type,
-        EvaluationQuestion.is_active.is_(True),
-    )
-    if evaluation_type == MANAGER_DETAIL:
-        query = query.where(EvaluationQuestion.organization_node_id == organization_node_id)
-    questions = db.scalars(query).all()
-    total_count = len(questions)
-    guide_complete = evaluation_guide_exists(db, evaluation_type)
-    return {
-        "complete": guide_complete and total_count > 0,
-        "complete_count": total_count if guide_complete and total_count > 0 else 0,
-        "guide_complete": guide_complete,
-        "total_count": total_count,
-    }
-
-
-def evaluation_guide_exists(db: Session, evaluation_type: str) -> bool:
-    return bool(evaluation_guide_content(db, evaluation_type).strip())
-
-
-def question_readiness_detail(stats: dict) -> str:
-    guide_label = "안내문 완료" if stats["guide_complete"] else "안내문 미완료"
-    return f"{guide_label}, 문항 {stats['total_count']}개"

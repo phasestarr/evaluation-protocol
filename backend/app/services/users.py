@@ -8,21 +8,20 @@ from app.db.postgres.models import (
     OrganizationNodeType,
     User,
 )
-from app.schemas import CurrentUserOut
 
 settings = get_settings()
 
 
-def serialize_user(user: User) -> CurrentUserOut:
-    return CurrentUserOut(
-        email=user.email,
-        display_name=user.display_name,
-        job_title=user.job_title,
-        system_role=user.system_role.value,
-        has_leader_membership=has_leader_membership(user),
-        has_manager_detail_access=has_manager_detail_access(user),
-        organization_affiliation=format_user_affiliation(user),
-    )
+def serialize_current_user(user: User) -> dict:
+    return {
+        "email": user.email,
+        "display_name": user.display_name,
+        "job_title": user.job_title,
+        "system_role": user.system_role.value,
+        "has_leader_membership": has_leader_membership(user),
+        "has_manager_detail_access": has_manager_detail_access(user),
+        "organization_affiliation": format_user_affiliation(user),
+    }
 
 
 def serialize_admin_user(user: User) -> dict:

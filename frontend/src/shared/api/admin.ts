@@ -12,26 +12,26 @@ import type {
 } from "../types";
 
 export async function fetchAdminUsers(): Promise<AdminUsersResponse> {
-  return fetchJson<AdminUsersResponse>("/api/admin/users");
+  return fetchJson<AdminUsersResponse>("/api/v1/admin/users");
 }
 
 export async function fetchEvaluationState(): Promise<EvaluationSystemStateResponse> {
-  return fetchJson<EvaluationSystemStateResponse>("/api/admin/evaluation-state");
+  return fetchJson<EvaluationSystemStateResponse>("/api/v1/admin/evaluation-state");
 }
 
 export async function fetchAdminReadiness(): Promise<AdminReadinessResponse> {
-  return fetchJson<AdminReadinessResponse>("/api/admin/readiness");
+  return fetchJson<AdminReadinessResponse>("/api/v1/admin/readiness");
 }
 
 export async function startEvaluationCycle(name: string): Promise<EvaluationSystemStateResponse> {
-  return fetchJson<EvaluationSystemStateResponse>("/api/admin/evaluation-state/start", {
+  return fetchJson<EvaluationSystemStateResponse>("/api/v1/admin/evaluation-state/start", {
     method: "POST",
     body: JSON.stringify({ name }),
   });
 }
 
 export async function stopEvaluationCycle(): Promise<EvaluationSystemStateResponse> {
-  return fetchJson<EvaluationSystemStateResponse>("/api/admin/evaluation-state/stop", {
+  return fetchJson<EvaluationSystemStateResponse>("/api/v1/admin/evaluation-state/stop", {
     method: "POST",
   });
 }
@@ -42,46 +42,46 @@ export async function addWhitelistEmail(input: {
   display_name: string;
   system_role: string;
 }): Promise<unknown> {
-  return fetchJson<unknown>("/api/admin/whitelist", {
+  return fetchJson<unknown>("/api/v1/admin/whitelist", {
     method: "POST",
     body: JSON.stringify(input),
   });
 }
 
 export async function deleteWhitelistEmail(email: string): Promise<{ ok: boolean }> {
-  return fetchJson<{ ok: boolean }>(`/api/admin/whitelist/${encodeURIComponent(email)}`, {
+  return fetchJson<{ ok: boolean }>(`/api/v1/admin/whitelist/${encodeURIComponent(email)}`, {
     method: "DELETE",
   });
 }
 
 export async function fetchAdminOrgTree(): Promise<AdminOrgTreeResponse> {
-  return fetchJson<AdminOrgTreeResponse>("/api/admin/org/tree");
+  return fetchJson<AdminOrgTreeResponse>("/api/v1/admin/org/tree");
 }
 
 export async function importOrganizationCsv(file: File): Promise<OrganizationImportResponse> {
   const body = new FormData();
   body.append("file", file);
-  return fetchJson<OrganizationImportResponse>("/api/admin/org/import-csv", {
+  return fetchJson<OrganizationImportResponse>("/api/v1/admin/org/import-csv", {
     method: "POST",
     body,
   });
 }
 
 export async function fetchPeerTeams(): Promise<PeerTeamsResponse> {
-  return fetchJson<PeerTeamsResponse>("/api/admin/peer-teams");
+  return fetchJson<PeerTeamsResponse>("/api/v1/admin/peer-teams");
 }
 
 export async function importPeerTeamsCsv(file: File): Promise<PeerTeamsResponse> {
   const body = new FormData();
   body.append("file", file);
-  return fetchJson<PeerTeamsResponse>("/api/admin/peer-teams/import-csv", {
+  return fetchJson<PeerTeamsResponse>("/api/v1/admin/peer-teams/import-csv", {
     method: "POST",
     body,
   });
 }
 
 export async function fetchAdminQuestions(): Promise<AdminQuestionsResponse> {
-  return fetchJson<AdminQuestionsResponse>("/api/admin/questions");
+  return fetchJson<AdminQuestionsResponse>("/api/v1/admin/questions");
 }
 
 export async function createEvaluationQuestion(input: {
@@ -91,18 +91,18 @@ export async function createEvaluationQuestion(input: {
   weight: number | null;
   organization_node_id?: number | null;
 }): Promise<unknown> {
-  return fetchJson<unknown>("/api/admin/questions", {
+  return fetchJson<unknown>("/api/v1/admin/questions", {
     method: "POST",
     body: JSON.stringify(input),
   });
 }
 
 export async function fetchManagerDetailQuestionTeams(): Promise<ManagerDetailQuestionTeamsResponse> {
-  return fetchJson<ManagerDetailQuestionTeamsResponse>("/api/admin/questions/manager-detail/teams");
+  return fetchJson<ManagerDetailQuestionTeamsResponse>("/api/v1/admin/questions/manager-detail/teams");
 }
 
 export async function deleteEvaluationQuestion(questionId: number): Promise<{ ok: boolean }> {
-  return fetchJson<{ ok: boolean }>(`/api/admin/questions/${questionId}`, {
+  return fetchJson<{ ok: boolean }>(`/api/v1/admin/questions/${questionId}`, {
     method: "DELETE",
   });
 }
@@ -111,7 +111,7 @@ export async function fetchEvaluationGuide(
   evaluationType: EvaluationType,
 ): Promise<{ evaluation_type: EvaluationType; content: string }> {
   return fetchJson<{ evaluation_type: EvaluationType; content: string }>(
-    `/api/admin/evaluation-guides/${evaluationType}`,
+    `/api/v1/admin/evaluation-guides/${evaluationType}`,
   );
 }
 
@@ -119,7 +119,7 @@ export async function saveEvaluationGuide(
   evaluationType: EvaluationType,
   content: string,
 ): Promise<{ ok: boolean }> {
-  return fetchJson<{ ok: boolean }>(`/api/admin/evaluation-guides/${evaluationType}`, {
+  return fetchJson<{ ok: boolean }>(`/api/v1/admin/evaluation-guides/${evaluationType}`, {
     method: "PUT",
     body: JSON.stringify({ content }),
   });

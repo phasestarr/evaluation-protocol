@@ -5,7 +5,11 @@ from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
-from app.auth import (
+from app.api.contracts.auth import AuthStatusOut
+from app.config import get_settings
+from app.db.postgres.models import OAuthStatus
+from app.db.postgres.session import get_db
+from app.services.auth import (
     build_authorize_url,
     build_microsoft_redirect_uri,
     create_oauth_transaction,
@@ -17,18 +21,14 @@ from app.auth import (
     resolve_microsoft_profile,
     revoke_session_key,
 )
-from app.config import get_settings
-from app.db.postgres.models import OAuthStatus
-from app.db.postgres.session import get_db
-from app.schemas import AuthStatusOut
 from app.services.authz import get_current_user_from_request, is_login_allowed
-from app.services.users import serialize_user
+from app.services.users import serialize_current_user
 
-router = APIRouter()
+router = APIRouter(prefix="/api/v1/auth")
 settings = get_settings()
 
 
-@router.get("/api/v1/auth/microsoft/start")
+@router.get("/microsoft/start")
 def start_microsoft_login(
     request: Request,
     redirect_after: str = Query(default="/"),
@@ -42,7 +42,7 @@ def start_microsoft_login(
     return RedirectResponse(build_authorize_url(settings, transaction, redirect_uri), status_code=302)
 
 
-@router.get("/api/v1/auth/callback/microsoft")
+@router.get("/callback/microsoft")
 async def microsoft_callback(
     request: Request,
     state: str | None = None,
@@ -103,15 +103,15 @@ async def microsoft_callback(
     return response
 
 
-@router.get("/api/auth/me", response_model=AuthStatusOut)
+@router.get("/me", response_model=AuthStatusOut)
 def me(request: Request, db: Session = Depends(get_db)) -> AuthStatusOut:
     user = get_current_user_from_request(request, db)
     if not user:
         return AuthStatusOut(authenticated=False)
-    return AuthStatusOut(authenticated=True, user=serialize_user(user))
+    return AuthStatusOut(authenticated=True, user=serialize_current_user(user))
 
 
-@router.post("/api/auth/logout")
+@router.post("/logout")
 def logout(response: Response, request: Request, db: Session = Depends(get_db)) -> dict[str, bool]:
     revoke_session_key(db, request.cookies.get(settings.session_cookie_name))
     response.delete_cookie(

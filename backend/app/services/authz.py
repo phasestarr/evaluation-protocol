@@ -1,11 +1,11 @@
 from fastapi import HTTPException, Request
 from sqlalchemy.orm import Session
 
-from app.auth import get_user_by_session_key, is_email_whitelisted, is_initialization_email
+from app.services.auth import get_user_by_session_key, is_email_whitelisted, is_initialization_email
 from app.config import get_settings
 from app.constants import SYSTEM_IDLE
 from app.db.postgres.models import SystemRole, User
-from app.services.evaluation import get_system_state
+from app.services.evaluations.cycles import get_system_state
 
 settings = get_settings()
 

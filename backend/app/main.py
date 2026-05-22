@@ -27,6 +27,6 @@ app.include_router(admin.router)
 app.include_router(evaluations.router)
 
 
-@app.get("/api/health")
+@app.get("/api/v1/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
