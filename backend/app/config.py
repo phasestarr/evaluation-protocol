@@ -7,23 +7,23 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    database_url: str = "postgresql+psycopg://evaluation:evaluation@postgres:5432/evaluation"
-    session_cookie_name: str = "s1"
-    session_cookie_secure: bool = True
-    session_cookie_samesite: Literal["lax", "strict", "none"] = "lax"
-    session_ttl_minutes: int = 360
-    session_cleanup_interval_minutes: int = 60
+    database_url: str
+    session_cookie_name: str
+    session_cookie_secure: bool
+    session_cookie_samesite: Literal["lax", "strict", "none"]
+    session_ttl_minutes: int
+    session_cleanup_interval_minutes: int
 
-    microsoft_tenant_id: str = "organizations"
-    microsoft_client_id: str = ""
-    microsoft_client_secret: str = ""
-    microsoft_redirect_path: str = "/api/v1/auth/callback/microsoft"
-    microsoft_scopes: str = '["openid","email","User.Read"]'
+    microsoft_tenant_id: str
+    microsoft_client_id: str
+    microsoft_client_secret: str
+    microsoft_redirect_path: str
+    microsoft_scopes: str
 
-    initialization_email: str = "bootstrap@example.com"
-    company_email_domain: str = "example.com"
-    frontend_success_url: str = "/"
-    frontend_failure_url: str = "/login"
+    initialization_email: str
+    company_email_domain: str
+    frontend_success_url: str
+    frontend_failure_url: str
 
     @property
     def initialization_email_normalized(self) -> str:
@@ -53,7 +53,7 @@ class Settings(BaseSettings):
 
     @property
     def microsoft_authority_base_url(self) -> str:
-        tenant = self.microsoft_tenant_id.strip() or "organizations"
+        tenant = self.microsoft_tenant_id.strip()
         if tenant.startswith("http://") or tenant.startswith("https://"):
             return tenant.rstrip("/")
         return f"https://login.microsoftonline.com/{tenant}"

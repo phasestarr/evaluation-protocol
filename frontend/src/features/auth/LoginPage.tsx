@@ -3,7 +3,7 @@ import { Shield } from "lucide-react";
 import { PageHeader } from "../../shared/ui/PageHeader/PageHeader";
 import "./LoginPage.css";
 
-const loginEyebrow = import.meta.env.VITE_LOGIN_EYEBROW || "Evaluation Protocol";
+const loginEyebrow = import.meta.env.VITE_LOGIN_EYEBROW;
 
 export function LoginPage({ authenticated }: { authenticated: boolean }) {
   const location = useLocation();
